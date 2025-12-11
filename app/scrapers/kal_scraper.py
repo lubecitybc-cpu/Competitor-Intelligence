@@ -240,47 +240,140 @@ def process_kal_promotions(competitor: Dict) -> List[Dict]:
                             break
                 return cards, card_selector
             
-            # Find tab buttons within the rebates section
+            # Find tab buttons within the rebates section - use multiple strategies
+            tabs_wrapper = None
+            
+            # Strategy 1: Look for rebates-tabs-nav-wrapper
             tabs_wrapper = page.query_selector(".rebates-tabs-nav-wrapper")
-            tab_names_to_click = ["Tires", "Wheels", "Services"]
+            
+            # Strategy 2: Look for any tab navigation element
+            if not tabs_wrapper:
+                tabs_wrapper = page.query_selector("[class*='tab'], [role='tablist'], .tabs, .nav-tabs")
+            
+            # Strategy 3: Look for tab-like elements in the rebates section
+            if not tabs_wrapper:
+                rebates_section = page.query_selector("[class*='rebate'], .rebates, #rebates")
+                if rebates_section:
+                    tabs_wrapper = rebates_section.query_selector("[class*='tab'], [role='tablist']")
+            
+            tab_names_to_click = ["Tires", "Wheels", "Services", "Tire", "Wheel", "Service"]
             tabs_to_process = []  # Will collect tabs to process
             
             if tabs_wrapper:
                 logger.info("Found tabs navigation, will click through each tab")
-                tab_buttons = tabs_wrapper.query_selector_all("a.content-custom-btn, button, [role='button']")
+                # Try multiple selectors for tab buttons
+                tab_selector_variants = [
+                    "a.content-custom-btn",
+                    "button",
+                    "[role='button']",
+                    "[role='tab']",
+                    "a[class*='tab']",
+                    "button[class*='tab']",
+                    ".tab-button",
+                    "a",
+                    "button"
+                ]
+                
+                tab_buttons = []
+                for selector in tab_selector_variants:
+                    try:
+                        found_buttons = tabs_wrapper.query_selector_all(selector)
+                        if found_buttons:
+                            tab_buttons = found_buttons
+                            logger.info(f"Found {len(tab_buttons)} tab buttons using selector: {selector}")
+                            break
+                    except:
+                        continue
+                
+                # If tabs_wrapper exists but no buttons found, try querying the whole page
+                if not tab_buttons:
+                    for selector in tab_selector_variants[:4]:  # Try first few selectors on whole page
+                        try:
+                            found_buttons = page.query_selector_all(selector)
+                            # Filter buttons that contain tab names
+                            for btn in found_buttons:
+                                btn_text = btn.inner_text().strip()
+                                if any(tab_name.lower() in btn_text.lower() for tab_name in ["Tires", "Wheels", "Services"]):
+                                    if btn not in tab_buttons:
+                                        tab_buttons.append(btn)
+                            if tab_buttons:
+                                logger.info(f"Found {len(tab_buttons)} tab buttons from page search")
+                                break
+                        except:
+                            continue
                 
                 for tab_btn in tab_buttons:
-                    tab_text = tab_btn.inner_text().strip()
-                    if tab_text in tab_names_to_click:
-                        tabs_to_process.append(tab_text)
+                    try:
+                        tab_text = tab_btn.inner_text().strip()
+                        # Normalize tab names (handle variations)
+                        tab_text_lower = tab_text.lower()
+                        if any(keyword in tab_text_lower for keyword in ["tire", "wheel", "service"]):
+                            if tab_text not in tabs_to_process:
+                                tabs_to_process.append(tab_text)
+                    except:
+                        continue
+                
+                logger.info(f"Found {len(tabs_to_process)} tabs to process: {tabs_to_process}")
                 
                 # If no tabs found but tabs_wrapper exists, try default view
                 if not tabs_to_process:
                     tabs_to_process = ["default"]
+                    logger.info("No tab buttons found, using default view")
             else:
-                logger.info("No tabs found, extracting from default view only")
+                logger.info("No tabs navigation found, extracting from default view only")
                 tabs_to_process = ["default"]
             
             # Process each tab and extract cards immediately (before DOM becomes stale)
             for tab_label in tabs_to_process:
                 if tab_label != "default":
                     logger.info(f"Clicking tab: {tab_label}")
-                    try:
-                        # Find and click the tab
-                        tab_selector = f".rebates-tabs-nav-wrapper a:has-text('{tab_label}')"
-                        tab_element = page.query_selector(tab_selector)
-                        
-                        if tab_element:
-                            # Use JavaScript click to avoid navigation issues
-                            page.evaluate("element => element.click()", tab_element)
-                            page.wait_for_timeout(3000)  # Wait for content to load
-                            logger.info(f"Successfully clicked tab '{tab_label}'")
-                        else:
-                            logger.warning(f"Tab '{tab_label}' not found, skipping")
+                    clicked_successfully = False
+                    
+                    # Try multiple methods to click the tab
+                    click_methods = [
+                        # Method 1: Direct text match in tabs_wrapper
+                        lambda: page.query_selector(f".rebates-tabs-nav-wrapper a:has-text('{tab_label}')") or 
+                                page.query_selector(f".rebates-tabs-nav-wrapper button:has-text('{tab_label}')"),
+                        # Method 2: Case-insensitive text match
+                        lambda: next((btn for btn in page.query_selector_all(".rebates-tabs-nav-wrapper a, .rebates-tabs-nav-wrapper button") 
+                                     if tab_label.lower() in btn.inner_text().strip().lower()), None),
+                        # Method 3: Look for tab with role
+                        lambda: page.query_selector(f"[role='tab']:has-text('{tab_label}')"),
+                        # Method 4: Search whole page for tab-like elements
+                        lambda: next((btn for btn in page.query_selector_all("a, button, [role='button'], [role='tab']")
+                                     if tab_label.lower() in btn.inner_text().strip().lower() and 
+                                     any(keyword in btn.inner_text().strip().lower() for keyword in ["tire", "wheel", "service"])), None)
+                    ]
+                    
+                    for method_idx, get_tab_element in enumerate(click_methods, 1):
+                        try:
+                            tab_element = get_tab_element()
+                            if tab_element:
+                                # Try multiple click methods
+                                try:
+                                    # Method 1: JavaScript click
+                                    page.evaluate("element => element.click()", tab_element)
+                                    page.wait_for_timeout(3000)  # Wait for content to load
+                                    clicked_successfully = True
+                                    logger.info(f"Successfully clicked tab '{tab_label}' using method {method_idx}")
+                                    break
+                                except:
+                                    try:
+                                        # Method 2: Regular click
+                                        tab_element.click()
+                                        page.wait_for_timeout(3000)
+                                        clicked_successfully = True
+                                        logger.info(f"Successfully clicked tab '{tab_label}' using regular click")
+                                        break
+                                    except:
+                                        continue
+                        except Exception as e:
+                            if method_idx == len(click_methods):
+                                logger.warning(f"All methods failed to click tab '{tab_label}': {e}")
                             continue
-                    except Exception as e:
-                        logger.warning(f"Error clicking tab '{tab_label}': {e}")
-                        continue
+                    
+                    if not clicked_successfully:
+                        logger.warning(f"Could not click tab '{tab_label}', attempting to extract from current view")
                 
                 # Extract cards from current view IMMEDIATELY (while DOM is valid)
                 cards, card_selector = extract_cards_from_current_view()

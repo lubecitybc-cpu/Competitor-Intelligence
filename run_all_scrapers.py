@@ -97,14 +97,43 @@ def main():
         ai_overview_result = None
         
         try:
-            # Step 1: Run website scraper (unless AI Overview only)
+            # Step 1: Run website scraper with retry logic (unless AI Overview only)
+            website_promos_count = 0
+            result = None
+            max_retries = 3  # Initial attempt + 2 retries
+            
             if not use_ai_only:
                 scraper_func = SCRAPER_MAP.get(name_lower)
                 if scraper_func:
-                    print(f"   🌐 Running website scraper...")
-                    result = scraper_func(competitor)
-                    website_promos_count = result.get("count", 0) if result and not result.get("error") else 0
-                    print(f"   ✅ Website scraper: {website_promos_count} promotions found")
+                    # Retry logic: try up to 3 times
+                    for attempt in range(1, max_retries + 1):
+                        if attempt > 1:
+                            print(f"   🔄 Retry attempt {attempt}/{max_retries}...")
+                            time.sleep(2)  # Small delay between retries
+                        
+                        try:
+                            result = scraper_func(competitor)
+                            website_promos_count = result.get("count", 0) if result and not result.get("error") else 0
+                            
+                            if website_promos_count > 0:
+                                print(f"   ✅ Website scraper: {website_promos_count} promotions found (attempt {attempt})")
+                                break  # Success, exit retry loop
+                            elif attempt < max_retries:
+                                print(f"   ⚠️  Attempt {attempt}: Found 0 promotions, retrying...")
+                            else:
+                                print(f"   ⚠️  Website scraper: 0 promotions found after {max_retries} attempts")
+                        except Exception as e:
+                            if attempt < max_retries:
+                                print(f"   ⚠️  Attempt {attempt} failed: {str(e)[:100]}, retrying...")
+                            else:
+                                print(f"   ❌ Website scraper failed after {max_retries} attempts: {str(e)[:100]}")
+                                result = {
+                                    "competitor": name,
+                                    "error": str(e),
+                                    "promotions": [],
+                                    "count": 0,
+                                    "scraped_at": datetime.now().isoformat()
+                                }
                 else:
                     print(f"   ⚠️  No website scraper found for {name}")
                     result = {
@@ -114,7 +143,8 @@ def main():
                         "scraped_at": datetime.now().isoformat()
                     }
             else:
-                # AI Overview only - return empty website result
+                # AI Overview only - return empty website result (skip website scraping entirely)
+                print(f"   🤖 AI Overview Only mode - skipping website scraping")
                 result = {
                     "competitor": name,
                     "promotions": [],
@@ -122,17 +152,35 @@ def main():
                     "scraped_at": datetime.now().isoformat()
                 }
             
-            # Step 2: Use AI Overview if: (AI Overview only) OR (website scraper returned 0 promotions)
-            if use_ai_only or website_promos_count == 0:
-                if website_promos_count == 0 and not use_ai_only:
-                    print(f"   ⚠️  Website scraper returned 0 promotions, using AI Overview as fallback...")
-                else:
-                    print(f"   🤖 Using AI Overview...")
-                
-                ai_overview_result = scrape_ai_overview(competitor, use_ai_overview_only=use_ai_only)
+            # Step 2: Use AI Overview if: (AI Overview only) OR (website scraper returned 0 promotions after retries)
+            # IMPORTANT: Mr. Lube should ONLY use AI Overview, not as fallback
+            if use_ai_only:
+                # AI Overview only mode - always use it
+                print(f"   🤖 Using AI Overview (AI Overview Only mode)...")
+                ai_overview_result = scrape_ai_overview(competitor, use_ai_overview_only=True)
                 ai_promos = ai_overview_result.get("promotions", [])
                 ai_count = len([p for p in ai_promos if p.get("promotion_title") != "CHECK"])
+                print(f"   ✅ AI Overview: {ai_count} promotions found")
                 
+                # Use AI Overview result as main result
+                valid_ai_promos = [p for p in ai_promos if p.get("promotion_title") != "CHECK"]
+                result = {
+                    "competitor": name,
+                    "scraped_at": datetime.now().isoformat(),
+                    "promotions": valid_ai_promos,
+                    "count": ai_count,
+                    "google_ai_overview_text": ai_overview_result.get("google_ai_overview_text", ""),
+                    "google_ai_source_links": ai_overview_result.get("google_ai_source_links", []),
+                    "ai_overview_used": True,
+                    "ai_overview_promotions_count": ai_count,
+                    "website_attempts": 0  # No website attempts for AI-only mode
+                }
+            elif website_promos_count == 0:
+                # Website scraper returned 0 promotions after retries, use AI Overview as fallback
+                print(f"   ⚠️  Website scraper returned 0 promotions after {max_retries} attempts, using AI Overview as fallback...")
+                ai_overview_result = scrape_ai_overview(competitor, use_ai_overview_only=False)
+                ai_promos = ai_overview_result.get("promotions", [])
+                ai_count = len([p for p in ai_promos if p.get("promotion_title") != "CHECK"])
                 print(f"   ✅ AI Overview: {ai_count} promotions found")
                 
                 # Merge AI Overview promotions with website results
@@ -153,8 +201,10 @@ def main():
                         result["google_ai_source_links"] = ai_overview_result.get("google_ai_source_links", [])
                         result["ai_overview_used"] = True
                         result["ai_overview_promotions_count"] = ai_count
+                        result["website_attempts"] = max_retries
                     else:
                         # If no website result, use AI Overview result as main result
+                        valid_ai_promos = [p for p in ai_promos if p.get("promotion_title") != "CHECK"]
                         result = {
                             "competitor": name,
                             "scraped_at": datetime.now().isoformat(),
@@ -163,12 +213,21 @@ def main():
                             "google_ai_overview_text": ai_overview_result.get("google_ai_overview_text", ""),
                             "google_ai_source_links": ai_overview_result.get("google_ai_source_links", []),
                             "ai_overview_used": True,
-                            "ai_overview_promotions_count": ai_count
+                            "ai_overview_promotions_count": ai_count,
+                            "website_attempts": max_retries
                         }
+                else:
+                    # No AI Overview promotions found either
+                    if result:
+                        result["ai_overview_used"] = False
+                        result["ai_overview_promotions_count"] = 0
+                        result["website_attempts"] = max_retries
             else:
                 # Website scraper found promotions, don't use AI Overview
-                result["ai_overview_used"] = False
-                result["ai_overview_promotions_count"] = 0
+                if result:
+                    result["ai_overview_used"] = False
+                    result["ai_overview_promotions_count"] = 0
+                    result["website_attempts"] = 1  # Success on first attempt (or update if we track which attempt succeeded)
             
             elapsed = time.time() - start_time
             

@@ -206,37 +206,82 @@ def extract_promo_blocks(html: str, url: str = "") -> List[Dict]:
     elif "archive" in url.lower():
         logger.info("Extracting promotions from archive page...")
         
-        # Look for featured monthly offers or promo sections
-        # Find headings with promo content
+        # Method 1: Look for service cards/sections with detailed content
+        # Find common service section patterns
+        service_keywords = ['oil change', 'brake', 'tire', 'alignment', 'battery', 'exhaust', 'transmission', 'cooling']
+        
+        # Look for headings with service names
         promo_headings = soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'], string=re.compile(
-            r'oil\s+change|tire|brake|buy.*get|free|special|offer|\$\d+', re.IGNORECASE
+            r'oil\s+change|tire|brake|buy.*get|free|special|offer|\$\d+|alignment|battery|exhaust|transmission|cooling', re.IGNORECASE
         ))
         
         for heading in promo_headings:
             heading_text = heading.get_text(strip=True)
             
-            # Get parent container
-            container = heading.find_parent(['section', 'div', 'article'])
+            # Get parent container - try to find the full service section
+            container = heading.find_parent(['section', 'div', 'article', 'li'])
             if not container:
                 container = heading.find_parent()
             
+            # Try to get more context by expanding the container
             if container:
+                # Look for sibling paragraphs or description divs
+                next_siblings = container.find_next_siblings(['p', 'div'], limit=5)
+                for sibling in next_siblings:
+                    sibling_classes = ' '.join(sibling.get('class', [])) if sibling.get('class') else ''
+                    if any(word in sibling_classes.lower() for word in ['description', 'detail', 'content', 'text']):
+                        container = container.find_parent(['div', 'section', 'article'])
+                        if container:
+                            container.append(sibling)
+                        break
+                
                 text = container.get_text(separator=" ", strip=True)
                 
                 # Must have price indicator or promo keyword
                 has_price = bool(re.search(r'\$\d+', text))
-                has_promo = bool(re.search(r'oil\s+change|tire|brake|free|special|offer|buy.*get', text, re.IGNORECASE))
+                has_promo = bool(re.search(r'oil\s+change|tire|brake|free|special|offer|buy.*get|includes|warranty', text, re.IGNORECASE))
                 
-                if (has_price or has_promo) and 50 < len(text) < 3000:
-                    text_hash = hash(text[:300])
+                # Filter out navigation/menu items (too short or contains nav keywords)
+                is_nav = bool(re.search(r'home|about|contact|menu|navigation', text[:100], re.IGNORECASE)) and len(text) < 200
+                
+                if not is_nav and (has_price or has_promo) and 80 < len(text) < 5000:
+                    # Clean up text (remove excessive whitespace)
+                    text = re.sub(r'\s+', ' ', text).strip()
+                    text_hash = hash(text[:400])
                     if text_hash not in seen_texts:
                         seen_texts.add(text_hash)
                         promo_blocks.append({
                             "text": text,
-                            "html": str(container)[:2000],
+                            "html": str(container)[:3000],
                             "selector": f"archive-{heading.name}"
                         })
                         logger.info(f"Found archive promo: {heading_text[:50]}... ({len(text)} chars)")
+        
+        # Method 2: Search for service description blocks by class/id patterns
+        service_patterns = [
+            {'tag': 'div', 'class': re.compile(r'service|promo|offer|deal', re.IGNORECASE)},
+            {'tag': 'article', 'class': re.compile(r'service|promo', re.IGNORECASE)},
+            {'tag': 'section', 'class': re.compile(r'service|promo', re.IGNORECASE)},
+        ]
+        
+        for pattern in service_patterns:
+            elements = soup.find_all(pattern['tag'], class_=pattern['class'])
+            for elem in elements:
+                text = elem.get_text(separator=" ", strip=True)
+                text = re.sub(r'\s+', ' ', text).strip()
+                
+                if 100 < len(text) < 3000:
+                    has_service = any(keyword in text.lower() for keyword in service_keywords)
+                    if has_service:
+                        text_hash = hash(text[:400])
+                        if text_hash not in seen_texts:
+                            seen_texts.add(text_hash)
+                            promo_blocks.append({
+                                "text": text,
+                                "html": str(elem)[:3000],
+                                "selector": f"archive-service-block"
+                            })
+                            logger.info(f"Found archive service block: {text[:60]}... ({len(text)} chars)")
     
     # Remove very similar duplicates using fuzzy matching
     if len(promo_blocks) > 1:
