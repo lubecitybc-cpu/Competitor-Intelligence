@@ -36,3 +36,6 @@ dateparser==1.2.0
 # Firecrawl
 firecrawl-py
 
+# SerpAPI for Google AI Overview
+google-search-results==2.4.2
+

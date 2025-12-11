@@ -42,6 +42,28 @@ def are_texts_similar(text1: str, text2: str, threshold: int = 85) -> bool:
     return similarity >= threshold
 
 
+def _extract_image_url(img, base_url: str) -> str:
+    """Extract image URL from img element, trying multiple attributes."""
+    from urllib.parse import urljoin
+    
+    # Try multiple attributes in priority order
+    for attr in ["data-src", "data-lazy-src", "data-original", "src", "data-url"]:
+        if img.get(attr) and img.get(attr).strip():
+            url = urljoin(base_url, img.get(attr))
+            if url and url.strip() and url.strip() != "/":
+                return url
+    
+    # Try srcset
+    if img.get("srcset"):
+        srcset = img.get("srcset")
+        first_url = srcset.split(",")[0].strip().split()[0]
+        url = urljoin(base_url, first_url)
+        if url and url.strip():
+            return url
+    
+    return None
+
+
 def extract_promo_details_from_text(text: str) -> Dict:
     """Extract promotion details from OCR text."""
     text_lower = text.lower()
@@ -90,8 +112,24 @@ def extract_promo_details_from_text(text: str) -> Dict:
     }
 
 
+def extract_brand_name(text: str) -> str:
+    """Extract tire brand name from text."""
+    tire_brands = [
+        "michelin", "bridgestone", "goodyear", "continental", "pirelli",
+        "bfgoodrich", "toyo", "nitto", "hankook", "falken", "kumho",
+        "yokohama", "dunlop", "firestone", "general", "cooper", "uniroyal",
+        "nexen", "hercules", "laufenn", "sumitomo", "sailun"
+    ]
+    
+    text_lower = text.lower()
+    for brand in tire_brands:
+        if brand in text_lower:
+            return brand.title()
+    return ""
+
+
 def process_trail_promotions(competitor: Dict) -> List[Dict]:
-    """Process Trail Tire promotions using banner image OCR."""
+    """Process Trail Tire promotions using banner image OCR - enhanced method."""
     logger.info(f"Processing promotions for {competitor.get('name')}")
     
     promo_links = competitor.get("promo_links", [])
@@ -101,87 +139,151 @@ def process_trail_promotions(competitor: Dict) -> List[Dict]:
     
     all_promos = []
     seen_image_urls = set()
-    seen_titles = set()
-    seen_ocr_hashes = set()
+    seen_promo_signatures = set()  # Use signature (brand + amount + image hash) for deduplication
     seen_image_hashes = set()
     
     for promo_url in promo_links:
         logger.info(f"Fetching {promo_url}")
         
-        # Step 1: Fetch with Firecrawl
+        # Step 1: Fetch with Firecrawl (try with JS rendering fallback)
         firecrawl_result = fetch_with_firecrawl(promo_url, timeout=90)
         
         if firecrawl_result.get("error"):
-            logger.error(f"Firecrawl error: {firecrawl_result['error']}")
-            continue
+            logger.warning(f"Firecrawl error: {firecrawl_result['error']}, trying fallback...")
+            # Try fallback to ZenRows with JS rendering
+            try:
+                from app.config.constants import ZENROWS_API_KEY
+                if ZENROWS_API_KEY:
+                    import requests
+                    zenrows_url = f"https://api.zenrows.com/v1/?apikey={ZENROWS_API_KEY}&url={promo_url}&js_render=true&wait=3000"
+                    response = requests.get(zenrows_url, timeout=45)
+                    response.raise_for_status()
+                    html = response.text
+                    logger.info("Successfully fetched with ZenRows (JS rendering)")
+                else:
+                    continue
+            except Exception as e:
+                logger.warning(f"Fallback fetch failed: {e}")
+                continue
+        else:
+            html = firecrawl_result.get("html", "")
+            if not html:
+                logger.warning(f"No HTML content from Firecrawl for {promo_url}")
+                continue
         
-        html = firecrawl_result.get("html", "")
-        if not html:
-            logger.warning(f"No HTML content from Firecrawl for {promo_url}")
-            continue
-        
-        # Step 2: Find banner images using CSS selector
-        # Note: Divs have multiple classes: "probox" and "promotion_width"
+        # Step 2: Find banner images using multiple methods for robustness
         from bs4 import BeautifulSoup
         from urllib.parse import urljoin
         soup = BeautifulSoup(html, "html.parser")
         
-        # Find all divs that have both "probox" and "promotion_width" classes
-        promo_divs = soup.find_all("div", class_=lambda x: x and "probox" in x and "promotion_width" in x)
         images = []
         seen_urls = set()
         
+        # Method 1: Primary selector - divs with "probox" class (includes both promotion_width and other promo divs)
+        promo_divs = soup.find_all("div", class_=lambda x: x and "probox" in x)
+        logger.info(f"Found {len(promo_divs)} promo divs with 'probox' class")
+        
         for div in promo_divs:
-            # Find images inside this div
             imgs = div.find_all("img")
             for img in imgs:
-                # Extract image URL from multiple attributes (check in priority order)
-                image_url = None
-                
-                # Try data-src first (common for lazy loading)
-                if img.get("data-src"):
-                    image_url = urljoin(promo_url, img.get("data-src"))
-                # Try data-lazy-src
-                elif img.get("data-lazy-src"):
-                    image_url = urljoin(promo_url, img.get("data-lazy-src"))
-                # Try data-original
-                elif img.get("data-original"):
-                    image_url = urljoin(promo_url, img.get("data-original"))
-                # Try src
-                elif img.get("src") and img.get("src").strip():
-                    image_url = urljoin(promo_url, img.get("src"))
-                # Try data-url
-                elif img.get("data-url"):
-                    image_url = urljoin(promo_url, img.get("data-url"))
-                # Try srcset
-                elif img.get("srcset"):
-                    srcset = img.get("srcset")
-                    first_url = srcset.split(",")[0].strip().split()[0]
-                    image_url = urljoin(promo_url, first_url)
-                
-                if not image_url or not image_url.strip() or image_url.strip() == "/":
-                    continue
-                
-                # Skip placeholder/empty images
-                if any(skip in image_url.lower() for skip in ["placeholder", "blank", "1x1", "spacer"]):
-                    continue
-                
-                # Normalize and deduplicate
-                normalized_url = image_url.lower().strip()
-                if normalized_url in seen_urls:
-                    continue
-                seen_urls.add(normalized_url)
-                
-                alt_text = img.get("alt", "")
-                images.append({
-                    "image_url": image_url,
-                    "alt_text": alt_text
-                })
+                image_url = _extract_image_url(img, promo_url)
+                if image_url and image_url.lower().strip() not in seen_urls:
+                    normalized_url = image_url.lower().strip()
+                    # Skip invalid URLs (page URL itself)
+                    if normalized_url == promo_url.lower() or normalized_url == promo_url.lower() + "/" or normalized_url.endswith("/promotions/"):
+                        continue
+                    # Skip logos and non-promo images
+                    if any(skip in normalized_url for skip in ["logo", "icon"]):
+                        continue
+                    # Must be a valid image URL (has extension or is from wp-content/uploads)
+                    has_extension = any(ext in normalized_url for ext in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"])
+                    is_upload = "wp-content" in normalized_url or "uploads" in normalized_url
+                    
+                    if has_extension or is_upload:
+                        seen_urls.add(normalized_url)
+                        images.append({
+                            "image_url": image_url,
+                            "alt_text": img.get("alt", "")
+                        })
+                        logger.debug(f"Found promo image: {image_url.split('/')[-1]}")
         
-        logger.info(f"Found {len(images)} banner images")
+        # Method 2: Try CSS selector approach
+        try:
+            css_images = find_images_by_css_selector(html, promo_url, "div.probox img")
+            for img_data in css_images:
+                if img_data["image_url"].lower().strip() not in seen_urls:
+                    seen_urls.add(img_data["image_url"].lower().strip())
+                    images.append(img_data)
+        except Exception as e:
+            logger.debug(f"CSS selector method failed: {e}")
+        
+        # Method 3: Try alternative class combinations
+        alt_divs = soup.find_all("div", class_=lambda x: x and ("probox" in x or "promotion" in x or "promo" in x))
+        for div in alt_divs:
+            imgs = div.find_all("img")
+            for img in imgs:
+                image_url = _extract_image_url(img, promo_url)
+                if image_url and image_url.lower().strip() not in seen_urls:
+                    # Verify it's likely a promo image (skip placeholders and non-image URLs)
+                    alt_text = img.get("alt", "")
+                    normalized_url = image_url.lower().strip()
+                    
+                    # Skip placeholders and non-image URLs
+                    if any(skip in normalized_url for skip in ["placeholder", "blank", "1x1", "spacer", "logo", "icon"]):
+                        continue
+                    # Skip if URL is the page URL itself
+                    if normalized_url == promo_url.lower() or normalized_url == promo_url.lower() + "/":
+                        continue
+                    # Must be an image file
+                    if not any(ext in normalized_url for ext in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]):
+                        # But allow if it's from wp-content (likely WordPress media)
+                        if "wp-content" not in normalized_url and "uploads" not in normalized_url:
+                            continue
+                    
+                    seen_urls.add(normalized_url)
+                    images.append({
+                        "image_url": image_url,
+                        "alt_text": alt_text
+                    })
+        
+        # Method 4: Also search for promo-related images anywhere on the page (Easy Pay, Protection Plan, etc.)
+        # Look for images with promo-related keywords in filename
+        all_page_images = soup.find_all("img")
+        for img in all_page_images:
+            image_url = _extract_image_url(img, promo_url)
+            if image_url and image_url.lower().strip() not in seen_urls:
+                normalized_url = image_url.lower().strip()
+                
+                # Skip invalid URLs
+                if normalized_url == promo_url.lower() or normalized_url == promo_url.lower() + "/" or normalized_url.endswith("/promotions/"):
+                    continue
+                
+                # Skip logos, icons, placeholders
+                if any(skip in normalized_url for skip in ["logo", "icon", "placeholder", "blank", "1x1", "spacer"]):
+                    continue
+                
+                # Check if it's a promo-related image by filename
+                filename_lower = normalized_url.lower()
+                is_promo_image = any(keyword in filename_lower for keyword in [
+                    "rebate", "promo", "promotion", "deal", "offer", "easy", "pay", 
+                    "protection", "plan", "financing", "special", "tire-rebate", "fall"
+                ])
+                
+                # Or check if it's in wp-content/uploads (likely promotional)
+                is_upload_image = "wp-content" in normalized_url or "uploads" in normalized_url
+                
+                if is_promo_image or (is_upload_image and any(ext in normalized_url for ext in [".png", ".jpg", ".jpeg"])):
+                    seen_urls.add(normalized_url)
+                    images.append({
+                        "image_url": image_url,
+                        "alt_text": img.get("alt", "")
+                    })
+                    logger.debug(f"Found additional promo image: {image_url.split('/')[-1]}")
+        
+        logger.info(f"Total {len(images)} unique banner images found")
         
         if not images:
-            logger.warning(f"No images found with selector 'div.probox_promotion_width img'")
+            logger.warning(f"No images found on {promo_url}")
             continue
         
         # Step 3: Process each image
@@ -221,42 +323,36 @@ def process_trail_promotions(competitor: Dict) -> List[Dict]:
             # Step 5: Skip if OCR text too short
             if not ocr_text or len(ocr_text.strip()) < 10:
                 logger.warning(f"OCR text too short (< 10 chars) from {image_url}")
-                img_path.unlink()
-                continue
+                # Try alt text as fallback before skipping
+                if alt_text and len(alt_text.strip()) >= 10:
+                    logger.info("Using alt text as fallback for short OCR")
+                    ocr_text = alt_text
+                else:
+                    img_path.unlink()
+                    continue
             
             # Step 6: Check if it's promo-related
             # Be more lenient for tire promotions - check for discount value or keywords
             is_promo = detect_promo_keywords(ocr_text, PROMO_KEYWORDS)
             extracted_details = extract_promo_details_from_text(ocr_text)
             
-            # Also consider it a promo if we found discount value
+            # Also consider it a promo if we found discount value OR if it's clearly a promo image
             if not is_promo and not extracted_details.get("discount_value"):
-                # Last check: if alt text contains promo keywords
+                # Last check: if alt text or image URL contains promo keywords
                 alt_lower = alt_text.lower()
-                has_keyword = any(kw in alt_lower for kw in ["rebate", "off", "discount", "save", "promo", "tire"])
-                if not has_keyword:
+                url_lower = image_url.lower()
+                has_keyword = any(kw in alt_lower or kw in url_lower for kw in ["rebate", "off", "discount", "save", "promo", "tire", "easy pay", "protection", "plan", "financing"])
+                
+                # Skip generic headers like "ROLLING OUT THE REBATES" that don't have actual offers
+                is_generic_header = any(phrase in ocr_text.lower() for phrase in ["rolling out", "the rebates", "promotions", "special offers"]) and not extracted_details.get("discount_value")
+                
+                if not has_keyword or (is_generic_header and not extracted_details.get("discount_value")):
                     logger.info(f"Image doesn't contain promo keywords or discount: {image_url}")
                     img_path.unlink()
                     continue
             
-            # Step 7: Deduplicate by OCR text similarity
-            ocr_hash = calculate_ocr_hash(ocr_text)
-            is_duplicate = False
-            
-            for existing_hash in seen_ocr_hashes:
-                # We'd need to store the text, but for now just check hash
-                # If exact hash match, it's definitely duplicate
-                if ocr_hash == existing_hash:
-                    logger.info(f"Skipping duplicate OCR content (exact hash match)")
-                    is_duplicate = True
-                    break
-            
-            if is_duplicate:
-                img_path.unlink()
-                continue
-            
-            # Store OCR hash for future comparisons
-            seen_ocr_hashes.add(ocr_hash)
+            # Step 7: Extract brand and basic details before deduplication
+            extracted_details = extract_promo_details_from_text(ocr_text)
             
             # Step 8: Extract basic details from text
             extracted_details = extract_promo_details_from_text(ocr_text)
@@ -265,31 +361,83 @@ def process_trail_promotions(competitor: Dict) -> List[Dict]:
             context = f"Trail Tire promotion banner. Alt text: {alt_text}"
             cleaned_data = clean_promo_text_with_llm(ocr_text, context)
             
-            # Step 10: Build promotion title
+            # Step 10: Extract brand name from OCR text
+            brand_name = extract_brand_name(ocr_text) or extract_brand_name(alt_text)
+            
+            # Step 11: Build promotion title - include brand and amount for uniqueness
             if cleaned_data and cleaned_data.get("service_name"):
-                promotion_title = cleaned_data.get("service_name")
+                base_title = cleaned_data.get("service_name")
+                if brand_name and brand_name.lower() not in base_title.lower():
+                    promotion_title = f"{brand_name} {base_title}" if brand_name else base_title
+                else:
+                    promotion_title = base_title
             elif cleaned_data and cleaned_data.get("promo_description"):
-                # Use first line of description as title
                 first_line = cleaned_data.get("promo_description", "").split("\n")[0].strip()[:100]
-                promotion_title = first_line if first_line else "Tire Promotion"
+                if brand_name and brand_name.lower() not in first_line.lower():
+                    promotion_title = f"{brand_name} {first_line}" if first_line else (f"{brand_name} Tire Promotion" if brand_name else "Tire Promotion")
+                else:
+                    promotion_title = first_line if first_line else "Tire Promotion"
             elif alt_text and len(alt_text.strip()) > 5:
                 promotion_title = alt_text[:100]
             else:
-                # Extract first meaningful line from OCR
                 lines = [l.strip() for l in ocr_text.split("\n") if l.strip() and len(l.strip()) > 5]
-                promotion_title = lines[0][:100] if lines else "Tire Promotion"
+                base_title = lines[0][:100] if lines else "Tire Promotion"
+                if brand_name and brand_name.lower() not in base_title.lower():
+                    promotion_title = f"{brand_name} {base_title}"
+                else:
+                    promotion_title = base_title
             
-            # Normalize title for deduplication
-            normalized_title = normalize_title(promotion_title)
+            # Add discount to title for uniqueness if available (but avoid duplicate amounts in title)
+            discount_value_temp = extracted_details.get("discount_value") or (cleaned_data.get("discount_value") if cleaned_data else None)
+            if discount_value_temp:
+                # Only add if not already in title
+                discount_lower = discount_value_temp.lower()
+                title_lower = promotion_title.lower()
+                if discount_lower not in title_lower:
+                    promotion_title = f"{promotion_title} - {discount_value_temp}"
+                else:
+                    # Remove duplicate amount from title if it appears twice
+                    # Check if amount appears at end already
+                    if promotion_title.endswith(f" - {discount_value_temp}"):
+                        pass  # Already has it once at end, that's fine
+                    elif f" - {discount_value_temp} - {discount_value_temp}" in promotion_title:
+                        promotion_title = promotion_title.replace(f" - {discount_value_temp} - {discount_value_temp}", f" - {discount_value_temp}")
             
-            # Skip if we've seen this title before
-            if normalized_title in seen_titles:
-                logger.info(f"Skipping duplicate title: {promotion_title}")
+            # Create unique signature for deduplication: brand + amount + image hash
+            brand = brand_name.lower() if brand_name else ""
+            amount = (discount_value_temp or "").lower() if discount_value_temp else ""
+            promo_signature = f"{brand}|{amount}|{str(img_hash)[:8] if img_hash else 'no-hash'}"
+            
+            # Skip if we've seen this exact signature before
+            if promo_signature in seen_promo_signatures:
+                logger.info(f"Skipping duplicate signature: {promo_signature}")
                 img_path.unlink()
                 continue
-            seen_titles.add(normalized_title)
+            seen_promo_signatures.add(promo_signature)
             
-            # Step 11: Build structured promo dict
+            # Also check if same brand and amount but different image (likely same promo)
+            if brand and amount:
+                brand_amount_sig = f"{brand}|{amount}"
+                for existing in all_promos:
+                    existing_brand = extract_brand_name(existing.get("ad_text", "") + " " + existing.get("promotion_title", "")).lower()
+                    existing_amount = (existing.get("discount_value", "") or "").lower()
+                    existing_sig = f"{existing_brand}|{existing_amount}"
+                    
+                    if brand_amount_sig == existing_sig and brand_amount_sig != "|":
+                        # Check title similarity
+                        existing_title = normalize_title(existing.get("promotion_title", ""))
+                        current_title = normalize_title(promotion_title)
+                        from fuzzywuzzy import fuzz
+                        similarity = fuzz.ratio(existing_title, current_title)
+                        if similarity > 90:
+                            logger.info(f"Skipping similar promo: {promotion_title} (similarity: {similarity}%)")
+                            img_path.unlink()
+                            break
+                else:
+                    # No break = not a duplicate
+                    pass
+            
+            # Step 12: Build structured promo dict
             if cleaned_data:
                 discount_value = cleaned_data.get("discount_value") or extracted_details.get("discount_value")
                 coupon_code = cleaned_data.get("coupon_code") or extracted_details.get("coupon_code")
@@ -315,7 +463,7 @@ def process_trail_promotions(competitor: Dict) -> List[Dict]:
                 "page_url": promo_url,
                 "business_name": competitor.get("name", ""),
                 "google_reviews": None,
-                "service_name": cleaned_data.get("service_name", "tires") if cleaned_data else "tires",
+                "service_name": brand_name or (cleaned_data.get("service_name", "tires") if cleaned_data else "tires"),
                 "promo_description": offer_details,
                 "category": "tires",
                 "contact": competitor.get("address", ""),
@@ -334,7 +482,7 @@ def process_trail_promotions(competitor: Dict) -> List[Dict]:
                 "source": "image_llm",
                 "confidence_score": round(confidence_score, 2),
                 "promotion_title": promotion_title,
-                "ocr_hash": ocr_hash
+                "brand_name": brand_name
             }
             
             all_promos.append(promo)

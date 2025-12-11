@@ -20,9 +20,8 @@
         "instagram": "https://www.instagram.com/midas/",
         "linkedin": "https://www.linkedin.com/company/midas-international",
         "promo_links": [
-            "https://www.midas.com/rebates",
-            "https://www.midascanada.com/archive",
-            "https://www.midas.com/about-midas/midas-credit-card-service-financing?country=ca"
+            "https://www.midas.com/rebates?country=ca",
+            "https://www.midascanada.com/archive"
         ]
     },
     {
@@ -33,7 +32,9 @@
         "google_maps": "https://www.google.com/maps/search/?api=1&query=Mr+Lube+10315+34+Ave+NW+Edmonton",
         "facebook": "https://www.facebook.com/MrLubeCanada/",
         "instagram": "https://www.instagram.com/mrlubecanada/",
-        "linkedin": "https://www.linkedin.com/company/mr-lube-canada"
+        "linkedin": "https://www.linkedin.com/company/mr-lube-canada",
+        "promo_links": [],
+        "use_ai_overview_only": true
     },
     {
         "name": "Integra Tire Auto Centre",

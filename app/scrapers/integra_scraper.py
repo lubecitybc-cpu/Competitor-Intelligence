@@ -87,7 +87,7 @@ def extract_rebate_details_from_text(text: str, alt_text: str = "") -> Dict:
 
 
 def process_integra_promotions(competitor: Dict) -> List[Dict]:
-    """Process Integra Tire promotions using image OCR."""
+    """Process Integra Tire promotions using image OCR - enhanced for all rebate images."""
     logger.info(f"Processing promotions for {competitor.get('name')}")
     
     promo_links = competitor.get("promo_links", [])
@@ -97,30 +97,75 @@ def process_integra_promotions(competitor: Dict) -> List[Dict]:
     
     all_promos = []
     seen_image_urls = set()
-    seen_titles = set()
+    seen_promo_signatures = set()  # Use signature (brand + amount + image hash) for deduplication
     seen_image_hashes = set()
     
     for promo_url in promo_links:
         logger.info(f"Fetching {promo_url}")
         
-        # Step 1: Fetch with Firecrawl
+        # Step 1: Fetch with Firecrawl (try with JS rendering if available)
         firecrawl_result = fetch_with_firecrawl(promo_url, timeout=90)
         
         if firecrawl_result.get("error"):
             logger.error(f"Firecrawl error: {firecrawl_result['error']}")
-            continue
+            # Try fallback to ZenRows with JS rendering
+            try:
+                from app.config.constants import ZENROWS_API_KEY
+                if ZENROWS_API_KEY:
+                    import requests
+                    zenrows_url = f"https://api.zenrows.com/v1/?apikey={ZENROWS_API_KEY}&url={promo_url}&js_render=true&wait=3000"
+                    response = requests.get(zenrows_url, timeout=45)
+                    response.raise_for_status()
+                    html = response.text
+                    logger.info("Successfully fetched with ZenRows (JS rendering)")
+                else:
+                    continue
+            except Exception as e:
+                logger.warning(f"Fallback fetch failed: {e}")
+                continue
+        else:
+            html = firecrawl_result.get("html", "")
+            if not html:
+                logger.warning(f"No HTML content from Firecrawl for {promo_url}")
+                continue
         
-        html = firecrawl_result.get("html", "")
-        if not html:
-            logger.warning(f"No HTML content from Firecrawl for {promo_url}")
-            continue
+        # Step 2: Try multiple CSS selectors to find rebate images
+        images = []
         
-        # Step 2: Find images using CSS selector
-        images = find_images_by_css_selector(html, promo_url, "img.single-rebate")
-        logger.info(f"Found {len(images)} rebate images")
+        # Primary selector
+        primary_images = find_images_by_css_selector(html, promo_url, "img.single-rebate")
+        images.extend(primary_images)
+        logger.info(f"Found {len(primary_images)} images with selector 'img.single-rebate'")
+        
+        # Additional selectors for robustness
+        additional_selectors = [
+            "img[class*='rebate']",
+            "img[class*='promo']",
+            "img[alt*='rebate']",
+            "img[alt*='tire']",
+            ".rebate img",
+            ".promotion img",
+            "div.rebate img",
+            "div[class*='rebate'] img"
+        ]
+        
+        for selector in additional_selectors:
+            try:
+                additional_images = find_images_by_css_selector(html, promo_url, selector)
+                # Only add if not already found
+                existing_urls = {img["image_url"].lower() for img in images}
+                new_images = [img for img in additional_images if img["image_url"].lower() not in existing_urls]
+                if new_images:
+                    logger.info(f"Found {len(new_images)} additional images with selector '{selector}'")
+                    images.extend(new_images)
+            except Exception as e:
+                logger.debug(f"Selector '{selector}' failed: {e}")
+                continue
+        
+        logger.info(f"Total {len(images)} unique rebate images found")
         
         if not images:
-            logger.warning(f"No images found with selector 'img.single-rebate'")
+            logger.warning(f"No images found with any selector on {promo_url}")
             continue
         
         # Step 3: Process each image
@@ -191,27 +236,70 @@ def process_integra_promotions(competitor: Dict) -> List[Dict]:
             context = f"Integra Tire rebate promotion. Alt text: {alt_text}"
             cleaned_data = clean_promo_text_with_llm(ocr_text, context)
             
-            # Build promotion title
+            # Build promotion title - be more specific to avoid duplicates
             if cleaned_data and cleaned_data.get("service_name"):
-                promotion_title = cleaned_data.get("service_name")
+                base_title = cleaned_data.get("service_name")
+                # Add brand if available
+                if rebate_details.get("brand_name") and rebate_details["brand_name"].lower() not in base_title.lower():
+                    promotion_title = f"{rebate_details['brand_name']} {base_title}"
+                else:
+                    promotion_title = base_title
             elif rebate_details.get("brand_name"):
-                promotion_title = f"{rebate_details['brand_name']} Rebate"
+                # Include amount in title for uniqueness
+                amount_str = f" - {rebate_details['rebate_amount']}" if rebate_details.get("rebate_amount") else ""
+                promotion_title = f"{rebate_details['brand_name']} Tire Rebate{amount_str}"
             elif alt_text:
-                promotion_title = alt_text[:100]
+                # Use alt text but make it unique if we have amount
+                amount_str = f" - {rebate_details['rebate_amount']}" if rebate_details.get("rebate_amount") else ""
+                promotion_title = f"{alt_text[:80]}{amount_str}"
             else:
                 # Extract first line or key phrase from OCR
                 first_line = ocr_text.split("\n")[0].strip()[:100]
-                promotion_title = first_line if first_line else "Tire Rebate"
+                amount_str = f" - {rebate_details['rebate_amount']}" if rebate_details.get("rebate_amount") else ""
+                promotion_title = f"{first_line if first_line else 'Tire Rebate'}{amount_str}"
             
-            # Normalize title for deduplication
-            normalized_title = normalize_title(promotion_title)
+            # Create a unique signature for deduplication: brand + amount + image hash
+            brand = (rebate_details.get("brand_name") or "").lower() if rebate_details and rebate_details.get("brand_name") else ""
+            amount = (rebate_details.get("rebate_amount") or "").lower() if rebate_details and rebate_details.get("rebate_amount") else ""
             
-            # Skip if we've seen this title before
-            if normalized_title in seen_titles:
-                logger.info(f"Skipping duplicate title: {promotion_title}")
+            # Use discount_value from LLM if available
+            if cleaned_data and cleaned_data.get("discount_value"):
+                amount = cleaned_data.get("discount_value", "").lower()
+            
+            # Create signature: brand + amount + first part of image hash
+            promo_signature = f"{brand}|{amount}|{str(img_hash)[:8] if img_hash else 'no-hash'}"
+            
+            # Skip if we've seen this exact signature before
+            if promo_signature in seen_promo_signatures:
+                logger.info(f"Skipping duplicate signature: {promo_signature}")
                 img_path.unlink()
                 continue
-            seen_titles.add(normalized_title)
+            seen_promo_signatures.add(promo_signature)
+            
+            # Also check if same brand and amount but different image (likely same promo, different image)
+            if brand and amount:
+                brand_amount_sig = f"{brand}|{amount}"
+                # Only skip if we already have this exact brand+amount combo AND images are similar
+                for existing in all_promos:
+                    existing_brand = (existing.get("rebate_details", {}).get("brand_name", "") or "").lower()
+                    existing_amount = (existing.get("discount_value", "") or "").lower()
+                    existing_sig = f"{existing_brand}|{existing_amount}"
+                    
+                    if brand_amount_sig == existing_sig and brand_amount_sig != "|":
+                        # Same brand and amount - check if titles are very similar
+                        existing_title = normalize_title(existing.get("promotion_title", ""))
+                        current_title = normalize_title(promotion_title)
+                        
+                        # If titles are >90% similar, skip (same promo)
+                        from fuzzywuzzy import fuzz
+                        similarity = fuzz.ratio(existing_title, current_title)
+                        if similarity > 90:
+                            logger.info(f"Skipping similar promo: {promotion_title} (similarity: {similarity}%)")
+                            img_path.unlink()
+                            break
+                else:
+                    # No break = not a duplicate
+                    pass
             
             # Use LLM cleaned data if available, otherwise use extracted details
             if cleaned_data:

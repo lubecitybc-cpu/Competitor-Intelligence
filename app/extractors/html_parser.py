@@ -93,17 +93,41 @@ def find_images_by_css_selector(html: str, base_url: str, css_selector: str) -> 
     images = []
     seen_urls = set()
     
-    # Parse CSS selector (simple support for class and tag selectors)
-    # e.g., "img.single-rebate" -> tag="img", class="single-rebate"
-    parts = css_selector.split(".")
-    tag = parts[0] if parts else "img"
-    class_name = parts[1] if len(parts) > 1 else None
-    
-    # Find images
-    if class_name:
-        img_elements = soup.find_all(tag, class_=class_name)
-    else:
-        img_elements = soup.find_all(tag)
+    # Parse CSS selector - support more complex selectors
+    # Try BeautifulSoup's select() first for CSS selector support
+    try:
+        img_elements = soup.select(css_selector)
+    except Exception:
+        # Fallback to simple parsing
+        parts = css_selector.split(".")
+        tag = parts[0] if parts else "img"
+        class_name = parts[1] if len(parts) > 1 else None
+        
+        # Support attribute selectors like img[class*='rebate']
+        if "[" in css_selector and "]" in css_selector:
+            # Parse attribute selector like img[class*='rebate']
+            import re
+            attr_match = re.search(r'\[([^\]]+)\]', css_selector)
+            if attr_match:
+                attr_str = attr_match.group(1)
+                if "*=" in attr_str:  # Contains
+                    attr_name, attr_value = attr_str.split("*=")
+                    attr_name = attr_name.strip()
+                    attr_value = attr_value.strip().strip("'\"").strip('"')
+                    img_elements = soup.find_all(tag, attrs={attr_name: lambda x: x and attr_value.lower() in x.lower() if x else False})
+                elif "=" in attr_str:  # Exact match
+                    attr_name, attr_value = attr_str.split("=")
+                    attr_name = attr_name.strip()
+                    attr_value = attr_value.strip().strip("'\"").strip('"')
+                    img_elements = soup.find_all(tag, attrs={attr_name: attr_value})
+                else:
+                    img_elements = []
+            else:
+                img_elements = []
+        elif class_name:
+            img_elements = soup.find_all(tag, class_=class_name)
+        else:
+            img_elements = soup.find_all(tag)
     
     for img in img_elements:
         # Try multiple attributes in order of preference
