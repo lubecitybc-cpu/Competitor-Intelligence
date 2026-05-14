@@ -67,7 +67,10 @@
         "facebook": "https://www.facebook.com/valvoline/",
         "instagram": "https://www.instagram.com/valvoline/",
         "linkedin": "https://www.linkedin.com/company/valvoline-inc-",
-        "promo_links": ["http://valvolineedmonton.ca/"]
+        "promo_links": [
+            "http://valvolineedmonton.ca/",
+            "https://valvolineedmonton.ca/coupon/"
+        ]
     },
     {
         "name": "Kal Tire",

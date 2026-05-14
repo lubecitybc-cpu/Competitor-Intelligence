@@ -1,0 +1,18 @@
+[
+    {
+        "competitor": "Great Canadian Oil Change",
+        "website": "gcoc.ca",
+        "cities": ["Calgary", "Edmonton", "Grande Prairie"],
+        "source_scope": "national_service",
+        "extraction_methods": ["text", "image_ocr"],
+        "promo_links": [
+            {"url": "https://www.gcoc.ca/",                                   "service_hint": "Other"},
+            {"url": "https://www.gcoc.ca/oil-change/",                        "service_hint": "Oil Change"},
+            {"url": "https://www.gcoc.ca/services/battery-service/",          "service_hint": "Battery"},
+            {"url": "https://www.gcoc.ca/services/tire-services/",            "service_hint": "Tire Sales"},
+            {"url": "https://www.gcoc.ca/services/fuel-system-cleaning/",     "service_hint": "Fuel System Flush"},
+            {"url": "https://www.gcoc.ca/services/transmission-fluid-service/", "service_hint": "Transmission Fluid"},
+            {"url": "https://www.gcoc.ca/services/radiator-fluid-service/",   "service_hint": "Radiator Flush"}
+        ]
+    }
+]

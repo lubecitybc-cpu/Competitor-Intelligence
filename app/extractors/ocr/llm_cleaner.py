@@ -1,7 +1,8 @@
 """LLM-based text cleaning for OCR / promo text extraction.
 
-Tries Anthropic Claude first (if ANTHROPIC_API_KEY is set), falls back to
-OpenAI. Returns a dict matching the legacy contract, or None.
+Tries OpenAI first (if OPENAI_API_KEY is set), falls back to Anthropic Claude
+only when OpenAI is unavailable. Returns a dict matching the legacy contract,
+or None.
 """
 import json
 import re
@@ -187,7 +188,7 @@ def _call_openai(ocr_text: str, context: str = "") -> Optional[dict]:
 
 
 def clean_promo_text_with_llm(ocr_text: str, context: str = "") -> Optional[dict]:
-    """Clean / structure promo text via Anthropic (primary) → OpenAI (fallback).
+    """Clean / structure promo text via OpenAI (primary) → Anthropic (fallback).
 
     Returns a dict with keys: service_name, promo_description, discount_value,
     coupon_code, expiry_date, category. Returns None on total failure.
@@ -195,19 +196,19 @@ def clean_promo_text_with_llm(ocr_text: str, context: str = "") -> Optional[dict
     if not ocr_text or len(ocr_text.strip()) < 10:
         return None
 
-    if ANTHROPIC_API_KEY:
-        parsed = _call_anthropic(ocr_text, context)
-        if parsed:
-            logger.debug(f"LLM (Anthropic) cleaned promo: {parsed}")
-            return parsed
-        logger.info("Anthropic returned no parseable result; falling back to OpenAI.")
-
     if OPENAI_API_KEY:
         parsed = _call_openai(ocr_text, context)
         if parsed:
             logger.debug(f"LLM (OpenAI) cleaned promo: {parsed}")
             return parsed
+        logger.info("OpenAI returned no parseable result; falling back to Anthropic.")
 
-    if not ANTHROPIC_API_KEY and not OPENAI_API_KEY:
-        logger.warning("Neither ANTHROPIC_API_KEY nor OPENAI_API_KEY is set; skipping LLM cleaning")
+    if ANTHROPIC_API_KEY:
+        parsed = _call_anthropic(ocr_text, context)
+        if parsed:
+            logger.debug(f"LLM (Anthropic) cleaned promo: {parsed}")
+            return parsed
+
+    if not OPENAI_API_KEY and not ANTHROPIC_API_KEY:
+        logger.warning("Neither OPENAI_API_KEY nor ANTHROPIC_API_KEY is set; skipping LLM cleaning")
     return None
