@@ -608,3 +608,602 @@ if __name__ == "__main__":
     print(f"\n📊 Summary:")
     for promo in result.get("promotions", []):
         print(f"   • {promo.get('promotion_title', 'N/A')}: {promo.get('discount_value', 'N/A')}")
+
+
+# ---------------------------------------------------------------------------
+# v2 pipeline (Phase 5): per-store offers pages for Calgary / Edmonton /
+# Grande Prairie. Text-only. Does not affect the legacy `scrape_midas` above.
+# ---------------------------------------------------------------------------
+
+from app.utils.service_classifier import classify_service  # noqa: E402
+from app.scrapers.jiffy_scraper import (  # noqa: E402
+    _v2_extract_discount,
+    _v2_extract_coupon_code,
+    _is_terms_only,
+    _summarize_promo_description,
+    _normalize_discount,
+    _signature_meaningful_tokens,
+    _confidence_from_promo,
+)
+
+_MIDAS_OFFER_INDICATORS = re.compile(
+    r"(?:\bcoupons?\b|\brebates?\b|\bsave\b|\boff\b|\bdiscount\b|\bfree\b|"
+    r"\bfinancing\b|\bpromotion\b|\bspecial\b|\bdeal\b|\boffer\b|\bpromo\b|"
+    r"\blimited[- ]time\b|\bexpires?\b|\bvalid\s+through\b|"
+    r"\$\s*\d|\d+\s*%\s*off\b|\bget\s+\$?\d|\bup\s+to\s+\$?\d)",
+    re.IGNORECASE,
+)
+
+_MIDAS_NAV_BLOCKLIST = re.compile(
+    r"^(home|about|services|offers|coupons|locations|contact|sitemap|careers|"
+    r"faq|privacy|terms|menu|tire (?:sales|services?)|brake (?:repair|services?)|"
+    r"battery (?:replacement|services?)|oil change|view all|see all|learn more|"
+    r"sign up|subscribe|find a store|store hours|directions|book appointment|"
+    r"schedule (?:service|appointment)|skip to content|midas credit card)$",
+    re.IGNORECASE,
+)
+
+_MIDAS_HEADING_NOISE = re.compile(
+    r"^(?:midas\s+coupons?\s*[&and]+\s*offers|quality\s+parts\s+and\s+service|"
+    r"coupons?\s*[&and]+\s*offers\s+near\s+you|deals\s+to\s+match|"
+    r"request\s+appointment|print\s+offer|email\s+offer|required\s+fields)",
+    re.IGNORECASE,
+)
+
+_MIDAS_TITLE_NOISE_PATTERNS = [
+    re.compile(r"^get coupon$", re.IGNORECASE),
+    re.compile(r"^view (?:offer|coupon|details)$", re.IGNORECASE),
+    re.compile(r"^view all (?:offers|coupons)$", re.IGNORECASE),
+    re.compile(r"^print coupon$", re.IGNORECASE),
+]
+
+
+def _midas_extract_offer_sections(html: str) -> List[Dict]:
+    """Pull candidate offer sections from a Midas /offers page.
+
+    We scan the obvious card/section/article/li containers, plus any element
+    whose class hints at a coupon/offer/promo/rebate card. A section becomes
+    a candidate only if its text shows a real offer indicator AND it isn't
+    a navigation/menu label.
+    """
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup(["script", "style", "noscript", "header", "footer", "nav"]):
+        tag.decompose()
+
+    candidates: List = []
+    class_hint_re = re.compile(r"(coupon|offer|promo|deal|rebate|special|discount)", re.IGNORECASE)
+
+    for el in soup.find_all(["article", "section", "li", "div"]):
+        classes = " ".join(el.get("class", []) or [])
+        ids = el.get("id", "") or ""
+        if class_hint_re.search(classes) or class_hint_re.search(ids):
+            candidates.append(el)
+
+    for h in soup.find_all(["h1", "h2", "h3", "h4"]):
+        if _MIDAS_OFFER_INDICATORS.search(h.get_text(" ", strip=True) or ""):
+            parent = h.find_parent(["article", "section", "div"]) or h
+            candidates.append(parent)
+
+    # Keep only "leaf" offer cards: drop any candidate whose text fully
+    # contains another candidate's text (those are outer wrappers).
+    if candidates:
+        cand_text: List[str] = [c.get_text(" ", strip=True) for c in candidates]
+        cand_len = [len(t) for t in cand_text]
+        kept: List = []
+        for i, el in enumerate(candidates):
+            ti = cand_text[i]
+            is_wrapper = False
+            for j, tj in enumerate(cand_text):
+                if i == j:
+                    continue
+                if cand_len[j] < cand_len[i] and tj and tj in ti and cand_len[j] >= 40:
+                    is_wrapper = True
+                    break
+            if not is_wrapper:
+                kept.append(el)
+        candidates = kept
+
+    sections: List[Dict] = []
+    seen_hashes: set = set()
+    for el in candidates:
+        text = el.get_text("\n", strip=True)
+        if not text or len(text) < 25 or len(text) > 4000:
+            continue
+        if not _MIDAS_OFFER_INDICATORS.search(text):
+            continue
+        first_line = next((ln.strip() for ln in text.split("\n") if ln.strip()), "")
+        if not first_line or _MIDAS_NAV_BLOCKLIST.match(first_line):
+            continue
+        if _MIDAS_HEADING_NOISE.match(first_line):
+            continue
+        h = hash(text[:500])
+        if h in seen_hashes:
+            continue
+        seen_hashes.add(h)
+        sections.append({"text": text, "html": str(el)[:2000]})
+    return sections
+
+
+def _midas_has_real_offer(text: str, discount: Optional[str], code: Optional[str]) -> bool:
+    """Real offer ⇒ has a discount, a code, OR an explicit offer marker.
+
+    Generic service-menu text like 'Oil Change' alone must NOT pass.
+    """
+    if discount or code:
+        return True
+    return bool(re.search(
+        r"(?:\bcoupons?\b|\brebates?\b|\bsave\b|\bfree\b|\bfinancing\b|"
+        r"\blimited[- ]time\b|\bexpires?\b|\bvalid\s+through\b|"
+        r"\$\s*\d+|\d+\s*%\s*off\b|\bget\s+\$?\d|\bup\s+to\s+\$?\d|"
+        r"\bbonus\s+air\s*miles?\b)",
+        text or "",
+        re.IGNORECASE,
+    ))
+
+
+def _midas_clean_title(raw: str) -> str:
+    line = (raw or "").strip().splitlines()[0] if raw else ""
+    line = line.strip(" •-—|").strip()
+    for pat in _MIDAS_TITLE_NOISE_PATTERNS:
+        if pat.match(line):
+            return ""
+    return line[:120]
+
+
+def _midas_signature(*, title: str, discount: Optional[str], code: Optional[str]) -> str:
+    d = _normalize_discount(discount) or ""
+    c = (code or "").strip().upper()
+    if d and c:
+        return f"d={d}|c={c}"
+    title_clean = re.sub(r"\d+\s*(ave|st|street|road|rd|blvd|trail|way|cres|drive|dr)\b",
+                        " ", (title or "").lower())
+    tokens = _signature_meaningful_tokens(title_clean)
+    return f"d={d}|c={c}|t={tokens}"
+
+
+def _midas_build_row(
+    *,
+    competitor: str,
+    page_url: str,
+    city: str,
+    store_name: str,
+    promotion_title: str,
+    offer_details: str,
+    ad_text: str,
+    discount: Optional[str],
+    code: Optional[str],
+    expiry: Optional[str],
+    std_service: str,
+) -> Dict:
+    row = {
+        # Existing sheet columns (first)
+        "website": "midas.com",
+        "page_url": page_url,
+        "business_name": competitor,
+        "google_reviews": "",
+        "service_name": std_service,
+        "promo_description": offer_details,
+        "category": std_service,
+        "contact": store_name,
+        "location": store_name,
+        "offer_details": offer_details,
+        "ad_title": promotion_title,
+        "ad_text": ad_text,
+        "new_or_updated": "new",
+        "date_scraped": datetime.now().isoformat(),
+
+        # QA metadata
+        "city": city,
+        "store_name": store_name,
+        "source_scope": "store",
+        "extraction_method": "text",
+        "confidence": None,
+        "needs_review": False,
+        "discount_value": discount,
+        "coupon_code": code,
+        "expiry_date": expiry,
+        "promotion_title": promotion_title,
+        "normalized_title": (promotion_title or "").lower().strip(),
+        "applicable_cities": [city],
+        "duplicate_of_national": False,
+        "duplicate_group_id": None,  # filled in by orchestrator
+    }
+    row["confidence"] = _confidence_from_promo(row)
+    if row["confidence"] == "low" and not discount and not code:
+        row["needs_review"] = True
+    return row
+
+
+def _midas_extract_code_cards(html: str) -> List[Dict]:
+    """Find every Midas coupon block on the page and return the structured
+    card context (title, discount, expiry, code) so we can match codes back
+    to the leaf offer rows extracted upstream.
+
+    Anchors on Midas's BEM-style `.offers__coupon` container which wraps a
+    single coupon's title/subtitle/expires/promo-code spans. This avoids
+    accidentally swallowing the full page (privacy text, form, etc.).
+    """
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+    cards: List[Dict] = []
+    seen_codes: set = set()
+
+    # Find each `.offers__coupon` container (including modifier variants
+    # like `--is-odd`, `--is-last`), but NOT its children (-title / -subtitle /
+    # -promo-code / etc.) and NOT the wrapping `.offers__coupons-list`.
+    def _is_coupon_root(tag) -> bool:
+        cls = tag.get("class") or []
+        if not cls:
+            return False
+        for c in cls:
+            if c == "offers__offer-container" or c == "offers__coupon" \
+               or c.startswith("offers__coupon--"):
+                return True
+        return False
+
+    for coupon in soup.find_all(_is_coupon_root):
+
+        code_span = coupon.find(class_="offers__coupon-promo-code")
+        if not code_span:
+            continue
+        code_text = code_span.get_text(" ", strip=True)
+        m = re.search(r"Promo\s*Code\s*[:\-]?\s*([A-Z0-9]{4,12})", code_text, re.IGNORECASE)
+        if not m:
+            continue
+        code = m.group(1).upper()
+
+        title_el = coupon.find(class_="offers__coupon-title")
+        subtitle_el = coupon.find(class_="offers__coupon-subtitle")
+        expires_el = coupon.find(class_="offers__coupon-expires")
+
+        title = (title_el.get_text(" ", strip=True) if title_el else "").strip()
+        subtitle = (subtitle_el.get_text(" ", strip=True) if subtitle_el else "").strip()
+        expires_text = (expires_el.get_text(" ", strip=True) if expires_el else "").strip()
+
+        # Build a compact card text: title + subtitle + expiry only.
+        card_text_parts = [p for p in [title, subtitle, expires_text] if p]
+        card_text = " | ".join(card_text_parts)
+
+        discount = _v2_extract_discount(title + " " + subtitle)
+        # Detect "Free" as a discount when no $/% present.
+        if not discount and re.search(r"\bfree\b", (title + " " + subtitle), re.IGNORECASE):
+            discount = "free"
+
+        expiry_match = re.search(
+            r"([A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?,?\s*\d{4}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})",
+            expires_text,
+        )
+        expiry = expiry_match.group(1) if expiry_match else None
+
+        key = (code, _normalize_discount(discount), expiry or "")
+        if key in seen_codes:
+            continue
+        seen_codes.add(key)
+        cards.append({
+            "code": code,
+            "card_text": card_text,
+            "title": title,
+            "subtitle": subtitle,
+            "discount": discount,
+            "expiry": expiry,
+            "title_snippet": title or subtitle[:80],
+        })
+    return cards
+
+
+def _title_tokens(text: str) -> set:
+    text = (text or "").lower()
+    text = re.sub(r"[^\w\s]", " ", text)
+    stop = {"the", "a", "an", "and", "or", "of", "off", "on", "to", "for",
+            "with", "any", "select", "each", "per", "your", "our", "in",
+            "at", "by", "from", "is", "more", "than"}
+    tokens = {t for t in text.split() if len(t) > 2 and t not in stop}
+    return tokens
+
+
+def _enrich_rows_with_codes(rows: List[Dict], cards: List[Dict]) -> Dict[str, int]:
+    """Match rows to coupon-code cards using stable fields. Mutates `rows` and
+    returns per-pass counters.
+    """
+    counters = {"attempted": 0, "recovered": 0, "missing": 0, "ambiguous": 0}
+    if not rows:
+        return counters
+
+    for row in rows:
+        if row.get("coupon_code"):
+            continue  # already have a code from primary extraction
+        counters["attempted"] += 1
+
+        row_disc = _normalize_discount(row.get("discount_value"))
+        row_exp = (row.get("expiry_date") or "").strip()
+        row_tokens = _title_tokens(row.get("promotion_title", ""))
+
+        matches: List[Dict] = []
+        for card in cards:
+            card_disc = _normalize_discount(card.get("discount"))
+            card_exp = (card.get("expiry") or "").strip()
+            card_tokens = _title_tokens(card.get("title_snippet", "") + " " + card["card_text"])
+
+            disc_ok = (row_disc and card_disc and row_disc == card_disc) or (not row_disc and not card_disc)
+            exp_ok = (row_exp and card_exp and row_exp == card_exp) or (not row_exp or not card_exp)
+            token_overlap = len(row_tokens & card_tokens)
+            token_ok = token_overlap >= max(1, min(2, len(row_tokens) // 3))
+
+            score = 0
+            if row_disc and card_disc and row_disc == card_disc:
+                score += 3
+            if row_exp and card_exp and row_exp == card_exp:
+                score += 2
+            score += token_overlap
+
+            if disc_ok and (token_ok or exp_ok) and score >= 2:
+                matches.append({"card": card, "score": score})
+
+        if not matches:
+            counters["missing"] += 1
+            continue
+
+        matches.sort(key=lambda m: m["score"], reverse=True)
+        top = matches[0]
+        # ambiguous if top two have the same score and propose different codes
+        if (
+            len(matches) > 1
+            and matches[1]["score"] == top["score"]
+            and matches[1]["card"]["code"] != top["card"]["code"]
+        ):
+            counters["ambiguous"] += 1
+            row["needs_review"] = True
+            row["needs_review_reason"] = "coupon_code_ambiguous"
+            continue
+
+        row["coupon_code"] = top["card"]["code"]
+        row["coupon_code_source"] = "enrichment_pass"
+        counters["recovered"] += 1
+
+    return counters
+
+
+def _scrape_midas_store(
+    *,
+    url: str,
+    city: str,
+    store_name: str,
+    competitor: str,
+) -> Dict:
+    logger.info(f"[midas-v2] Fetching {city} | {store_name} | {url}")
+    html = fetch_with_fallback(url)
+    if not html:
+        return {"url": url, "status": "fetch_failed", "raw_promos": [], "enrichment": {"attempted": 0, "recovered": 0, "missing": 0, "ambiguous": 0}}
+
+    sections = _midas_extract_offer_sections(html)
+    raw_promos: List[Dict] = []
+    for sec in sections:
+        text = sec["text"]
+        discount = _v2_extract_discount(text)
+        code = _v2_extract_coupon_code(text)
+
+        first_line = _midas_clean_title(text)
+        if not first_line:
+            first_line = "Midas Offer"
+
+        if not _midas_has_real_offer(text, discount, code):
+            continue
+        if _is_terms_only(first_line, text, discount, code):
+            continue
+
+        expiry_match = re.search(
+            r"(?:expires?|valid\s+through|offer\s+valid)\s*[:\-]?\s*"
+            r"([A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?,?\s*\d{4}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})",
+            text, re.IGNORECASE,
+        )
+        expiry = expiry_match.group(1) if expiry_match else None
+
+        combined_for_classify = first_line + " " + text[:400]
+        if re.search(r"\boil\s+change\b", combined_for_classify, re.IGNORECASE):
+            std_service = "Oil Change"
+        elif re.search(r"\bbrake\s+pads?\b|\bbrake\s+rotors?\b|\bbrake\s+service\b",
+                       combined_for_classify, re.IGNORECASE):
+            std_service = "Brake"
+        elif re.search(r"\btires?\b", combined_for_classify, re.IGNORECASE) and \
+             re.search(r"\bbuy\s+\d|\bfree\s+tire|\boff\s+\d|\balignment\b|select\s+tires?",
+                       combined_for_classify, re.IGNORECASE):
+            std_service = "Tire Sales"
+        else:
+            std_service = classify_service(combined_for_classify)
+        offer_details = text[:1000]
+
+        row = _midas_build_row(
+            competitor=competitor,
+            page_url=url,
+            city=city,
+            store_name=store_name,
+            promotion_title=first_line,
+            offer_details=offer_details,
+            ad_text=text[:500],
+            discount=discount,
+            code=code,
+            expiry=expiry,
+            std_service=std_service,
+        )
+        row["promo_description"] = _summarize_promo_description(
+            promotion_title=first_line,
+            offer_details=offer_details,
+            discount=discount,
+            code=code,
+            std_service=std_service,
+            ad_text=text,
+            brand="Midas",
+        )
+        raw_promos.append(row)
+
+    # Per-page dedupe: nested DOM containers can yield the same offer
+    # multiple times (the outer card + an inner block + a title heading).
+    # Group rows by stable signature; for each group keep the most informative
+    # row (prefer discount+code+expiry, then longest offer_details).
+    groups: Dict[str, List[int]] = {}
+    for idx, r in enumerate(raw_promos):
+        sig = _midas_signature(
+            title=r.get("promotion_title", ""),
+            discount=r.get("discount_value"),
+            code=r.get("coupon_code"),
+        )
+        groups.setdefault(sig, []).append(idx)
+
+    keep_indices: List[int] = []
+    for sig, idxs in groups.items():
+        if len(idxs) == 1:
+            keep_indices.append(idxs[0])
+            continue
+
+        def _score(i: int) -> tuple:
+            r = raw_promos[i]
+            return (
+                1 if r.get("discount_value") else 0,
+                1 if r.get("coupon_code") else 0,
+                1 if r.get("expiry_date") else 0,
+                len(r.get("offer_details") or ""),
+            )
+
+        winner = max(idxs, key=_score)
+        keep_indices.append(winner)
+    keep_indices.sort()
+    deduped = [raw_promos[i] for i in keep_indices]
+
+    # ---- Coupon-code enrichment pass (does NOT add or drop rows) ----------
+    code_cards = _midas_extract_code_cards(html)
+    enrichment = _enrich_rows_with_codes(deduped, code_cards)
+    logger.info(
+        f"[midas-v2] {url} → codes attempted={enrichment['attempted']}, "
+        f"recovered={enrichment['recovered']}, missing={enrichment['missing']}, "
+        f"ambiguous={enrichment['ambiguous']} (cards on page: {len(code_cards)})"
+    )
+
+    return {
+        "url": url,
+        "status": "ok",
+        "raw_promos": deduped,
+        "enrichment": enrichment,
+        "code_cards_on_page": len(code_cards),
+    }
+
+
+def scrape_midas_v2(competitor_v2: Dict, *, mode: str = "qa_expanded") -> Dict:
+    """Phase 5 entry point for Midas. Per-store text-based scraping.
+
+    QA-expanded mode keeps every per-URL row, even when the same coupon
+    appears across multiple stores; matching rows share a stable
+    `duplicate_group_id`. final_deduped mode collapses identical
+    signatures within a city.
+    """
+    if mode not in ("qa_expanded", "final_deduped"):
+        raise ValueError("mode must be qa_expanded or final_deduped")
+
+    competitor_name = competitor_v2.get("competitor", "Midas")
+    store_links = competitor_v2.get("store_links", {}) or {}
+    expected_urls: List[str] = []
+    url_log: List[Dict] = []
+    rows: List[Dict] = []
+    seen_in_city: set = set()
+    enrichment_total = {"attempted": 0, "recovered": 0, "missing": 0, "ambiguous": 0}
+
+    for city, links in store_links.items():
+        for link in links:
+            url = link["url"]
+            store_name = link["store_name"]
+            expected_urls.append(url)
+            res = _scrape_midas_store(
+                url=url, city=city, store_name=store_name, competitor=competitor_name,
+            )
+            added = 0
+            dropped = 0
+            for r in res["raw_promos"]:
+                sig = _midas_signature(
+                    title=r.get("promotion_title", ""),
+                    discount=r.get("discount_value"),
+                    code=r.get("coupon_code"),
+                )
+                r["duplicate_group_id"] = sig
+                if mode == "final_deduped":
+                    key = (city, sig)
+                    if key in seen_in_city:
+                        dropped += 1
+                        continue
+                    seen_in_city.add(key)
+                rows.append(r)
+                added += 1
+            enr = res.get("enrichment") or {}
+            for k in enrichment_total:
+                enrichment_total[k] += enr.get(k, 0)
+            url_log.append({
+                "url": url, "city": city, "store_name": store_name,
+                "scope": "store",
+                "status": res["status"],
+                "raw_promo_count": len(res["raw_promos"]),
+                "added_unique": added,
+                "dropped_as_city_duplicate": dropped,
+                "excluded_count": 0,
+                "code_cards_on_page": res.get("code_cards_on_page", 0),
+                "codes_attempted": enr.get("attempted", 0),
+                "codes_recovered": enr.get("recovered", 0),
+                "codes_missing": enr.get("missing", 0),
+                "codes_ambiguous": enr.get("ambiguous", 0),
+            })
+            logger.info(f"[midas-v2] {city} | {store_name}: kept {added} rows")
+
+    # Validation aggregates ---------------------------------------------------
+    processed_urls = {e["url"] for e in url_log if e["status"] == "ok"}
+    failed_urls = [e["url"] for e in url_log if e["status"] == "fetch_failed"]
+    missing_urls = sorted(set(expected_urls) - {e["url"] for e in url_log})
+
+    row_count_by_url: Dict[str, int] = {}
+    row_count_by_city: Dict[str, int] = {}
+    dup_groups: Dict[str, int] = {}
+    for r in rows:
+        u = r.get("page_url") or ""
+        row_count_by_url[u] = row_count_by_url.get(u, 0) + 1
+        c = r.get("city") or ""
+        row_count_by_city[c] = row_count_by_city.get(c, 0) + 1
+        gid = r.get("duplicate_group_id") or ""
+        dup_groups[gid] = dup_groups.get(gid, 0) + 1
+
+    unique_promo_descriptions = len({(r.get("promo_description") or "").strip().lower() for r in rows})
+
+    base = competitor_name.lower().replace(" ", "_").replace(".", "")
+    output_file = PROMOTIONS_DIR / f"{base}_v2.json"
+    result = {
+        "competitor": competitor_name,
+        "scraped_at": datetime.now().isoformat(),
+        "config_version": "v2",
+        "mode": mode,
+        "promotions": rows,
+        "count": len(rows),
+        "needs_review_count": sum(1 for r in rows if r.get("needs_review")),
+        "by_city": row_count_by_city,
+        "validation": {
+            "expected_url_count": len(expected_urls),
+            "processed_url_count": len(processed_urls),
+            "failed_url_count": len(failed_urls),
+            "failed_urls": failed_urls,
+            "missing_urls": missing_urls,
+            "row_count_by_url": row_count_by_url,
+            "row_count_by_city": row_count_by_city,
+            "duplicate_group_counts": dup_groups,
+            "duplicate_group_total": len(dup_groups),
+            "needs_review_count": sum(1 for r in rows if r.get("needs_review")),
+            "unique_promo_descriptions": unique_promo_descriptions,
+            "coupon_code_recovery_attempted": enrichment_total["attempted"],
+            "coupon_code_recovered_count": enrichment_total["recovered"],
+            "coupon_code_missing_count": enrichment_total["missing"],
+            "coupon_code_ambiguous_count": enrichment_total["ambiguous"],
+            "coupon_code_coverage": (
+                sum(1 for r in rows if r.get("coupon_code")) / max(1, len(rows))
+            ),
+            "url_log": url_log,
+        },
+    }
+    output_file.write_text(json.dumps(result, indent=2, default=str))
+    logger.info(f"[midas-v2|{mode}] Saved {len(rows)} rows to {output_file}")
+    return result
