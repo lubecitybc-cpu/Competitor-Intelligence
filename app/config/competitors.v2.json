@@ -24,5 +24,59 @@
         "promo_links": [
             {"url": "https://www.mrlube.com/en/Services/tire-rebates-and-financing", "service_hint": "Tire Sales"}
         ]
+    },
+    {
+        "competitor": "Econo Lube",
+        "website": "econolube.ca",
+        "cities": ["Edmonton"],
+        "source_scope": "city_store",
+        "extraction_methods": ["text"],
+        "promo_links": [
+            {"url": "https://econolube.ca/",                                                "service_hint": "Other",          "is_homepage": true},
+            {"url": "https://econolube.ca/services/",                                       "service_hint": "Other"},
+            {"url": "https://econolube.ca/mechanical/brakes-spruce-grove/",                 "service_hint": "Brake"},
+            {"url": "https://econolube.ca/tires/new-tires-spruce-grove/",                   "service_hint": "Tire Sales"},
+            {"url": "https://econolube.ca/tires/tire-rotation-and-pressure-check/",         "service_hint": "Tire Rotation"},
+            {"url": "https://econolube.ca/vehicle-maintenance/full-service-oil-change/",    "service_hint": "Oil Change"},
+            {"url": "https://econolube.ca/vehicle-maintenance/battery-services-and-replacement/", "service_hint": "Battery"}
+        ]
+    },
+    {
+        "competitor": "Mobil 1 Lube Express",
+        "website": "mobil1express.ca",
+        "cities": ["Calgary", "Edmonton"],
+        "source_scope": "city_store",
+        "extraction_methods": ["text", "image_ocr"],
+        "promo_links": [
+            {
+                "url": "https://www.mobil1calgary.com/mobileoffer/",
+                "service_hint": "Oil Change",
+                "page_kind": "calgary_text"
+            },
+            {
+                "url": "https://mobil1express.ca/coupons/",
+                "service_hint": "Oil Change",
+                "page_kind": "shared_coupons"
+            }
+        ]
+    },
+    {
+        "competitor": "LubeFx Plus",
+        "website": "lubefx.com",
+        "cities": ["Edmonton"],
+        "source_scope": "city_store",
+        "extraction_methods": ["image_ocr", "text"],
+        "promo_links": [
+            {
+                "url": "https://lubefx.com/lubefx-coupons/",
+                "service_hint": "Oil Change",
+                "page_kind": "coupons"
+            },
+            {
+                "url": "https://lubefx.com/lubefx-rewards/",
+                "service_hint": "Oil Change",
+                "page_kind": "rewards"
+            }
+        ]
     }
 ]
