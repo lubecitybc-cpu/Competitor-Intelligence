@@ -78,5 +78,62 @@
                 "page_kind": "rewards"
             }
         ]
+    },
+    {
+        "competitor": "Quick Lane",
+        "website": "quicklane.ca",
+        "cities": ["Edmonton", "Grande Prairie"],
+        "source_scope": "city_store",
+        "extraction_methods": ["text", "image_ocr"],
+        "promo_links": [
+            {
+                "url": "https://edmonton-b6280.quicklane.ca/coupons",
+                "service_hint": "Other",
+                "page_kind": "edmonton_tabs",
+                "city": "Edmonton"
+            },
+            {
+                "url": "https://quicklanewest.ca/",
+                "service_hint": "Other",
+                "page_kind": "gp_homepage",
+                "city": "Grande Prairie"
+            },
+            {
+                "url": "https://quicklanewest.ca/tire",
+                "service_hint": "Tire Sales",
+                "page_kind": "gp_service",
+                "city": "Grande Prairie"
+            },
+            {
+                "url": "https://quicklanewest.ca/battery",
+                "service_hint": "Battery",
+                "page_kind": "gp_service",
+                "city": "Grande Prairie"
+            },
+            {
+                "url": "https://quicklanewest.ca/brake-service",
+                "service_hint": "Brake",
+                "page_kind": "gp_service",
+                "city": "Grande Prairie"
+            },
+            {
+                "url": "https://quicklanewest.ca/services/oil-change-maintenance-service",
+                "service_hint": "Oil Change",
+                "page_kind": "gp_service",
+                "city": "Grande Prairie"
+            },
+            {
+                "url": "https://quicklanewest.ca/services/cooling-system",
+                "service_hint": "Radiator Flush",
+                "page_kind": "gp_service",
+                "city": "Grande Prairie"
+            },
+            {
+                "url": "https://quicklanewest.ca/services",
+                "service_hint": "Other",
+                "page_kind": "gp_service",
+                "city": "Grande Prairie"
+            }
+        ]
     }
 ]
