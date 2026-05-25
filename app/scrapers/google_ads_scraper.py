@@ -174,12 +174,21 @@ def _is_noise(text: str) -> bool:
 
 
 _DOMAIN_RE = re.compile(r"^(www\.[\w.-]+\.\w{2,6}|[\w-]+\.(ca|com|net|org)(/\S*)?)$", re.I)
+# Unicode bidi control characters inserted by ATC around ad copy
+_BIDI_RE = re.compile(r"[⁦⁧⁨⁩‪-‮  ]")
+_URL_PATH_RE = re.compile(r"^/\S+$")  # bare URL paths like /oil_change
+_PHONE_RE = re.compile(r"\b\d{3}[\s.-]\d{3}[\s.-]\d{4}\b|call\s+\(?\d", re.I)
+
+
+def _strip_bidi(text: str) -> str:
+    return _BIDI_RE.sub("", text).strip()
 
 
 def _parse_creative_page(html: str) -> Optional[Dict]:
     """Extract ad_title, ad_description, and displayed_link from a creative detail page."""
     soup = BeautifulSoup(html, "html.parser")
-    texts = [t.strip() for t in soup.stripped_strings if t.strip()]
+    # Strip bidi control characters before any processing
+    texts = [_strip_bidi(t) for t in soup.stripped_strings if _strip_bidi(t)]
 
     if not texts:
         return None
@@ -222,8 +231,34 @@ def _parse_creative_page(html: str) -> Optional[Dict]:
     ]
 
     if not visit_indices:
-        # Creative was removed or panel had no actionable ad — skip.
-        return None
+        # Fallback for call/single-ad format ads (no "Visit site" button).
+        # These use "Single Ad Rendering Service" as the content header.
+        single_idx = next(
+            (i for i, t in enumerate(lower_texts)
+             if t == "single ad rendering service" and i > see_all_idx and i < see_more_idx),
+            -1,
+        )
+        if single_idx == -1:
+            return None
+        content: List[str] = []
+        j = single_idx + 1
+        while j < see_more_idx and len(content) < 2:
+            candidate = texts[j]
+            if (len(candidate) >= 8
+                    and not _is_noise(candidate)
+                    and not _DOMAIN_RE.match(candidate)
+                    and not _URL_PATH_RE.match(candidate)
+                    and not _PHONE_RE.search(candidate)
+                    and "·" not in candidate):
+                content.append(candidate)
+            j += 1
+        if not content:
+            return None
+        return {
+            "ad_title":       content[0],
+            "ad_description": content[1] if len(content) > 1 else "",
+            "displayed_link": displayed_link,
+        }
 
     # Use the last "Visit site" in the panel (multiple variations may exist).
     target_visit = visit_indices[-1]
