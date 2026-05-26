@@ -80,6 +80,88 @@
         ]
     },
     {
+        "competitor": "Midas",
+        "website": "midas.com",
+        "cities": ["Calgary", "Edmonton", "Grande Prairie"],
+        "source_scope": "store",
+        "extraction_methods": ["text"],
+        "store_links": {
+            "Calgary": [
+                {"url": "https://www.midas.com/store/ab/calgary/624-16th-avenue-n-w-t2m-0j7/offers?shopnum=9300",  "store_name": "Calgary 624 16th Avenue NW"},
+                {"url": "https://www.midas.com/store/ab/calgary/4121-macleod-trail-south-t2g-2r6/offers?shopnum=9302", "store_name": "Calgary 4121 Macleod Trail South"},
+                {"url": "https://www.midas.com/store/ab/calgary/2529-17th-avenue-s-w-t3e-0a2/offers?shopnum=9301",  "store_name": "Calgary 2529 17th Avenue SW"}
+            ],
+            "Edmonton": [
+                {"url": "https://www.midas.com/store/ab/edmonton/13038-97th-street-t5e-4c6/offers?shopnum=9351",    "store_name": "Edmonton 13038 97th Street"},
+                {"url": "https://www.midas.com/store/ab/edmonton/7120-82nd-ave-nw-t6b-0g1/offers?shopnum=9360",    "store_name": "Edmonton 7120 82nd Ave NW"},
+                {"url": "https://www.midas.com/store/ab/edmonton/6316-104th-street-t6h-2k9/offers?shopnum=9350",   "store_name": "Edmonton 6316 104th Street"}
+            ],
+            "Grande Prairie": [
+                {"url": "https://www.midas.com/store/ab/grande-prairie/11211-100th-street-t8v-6p7/offers?shopnum=9426", "store_name": "Grande Prairie 11211 100th Street"}
+            ]
+        }
+    },
+    {
+        "competitor": "Lube Town",
+        "website": "lubetown.com",
+        "cities": ["Calgary"],
+        "source_scope": "city_store",
+        "extraction_methods": ["text"],
+        "promo_links": [
+            {"url": "https://lubetown.com/coupon/", "service_hint": "Oil Change", "page_kind": "coupons"}
+        ]
+    },
+    {
+        "competitor": "Jiffy Lube",
+        "website": "jiffylubeservice.ca",
+        "cities": ["Calgary", "Edmonton", "Grande Prairie"],
+        "source_scope": "national_store",
+        "extraction_methods": ["text", "image_ocr"],
+        "promo_links": [
+            {"url": "https://www.jiffylubeservice.ca/coupons", "service_hint": "Oil Change", "page_kind": "national_coupons"}
+        ],
+        "store_links": {
+            "Calgary": [
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/calgary-16th-avenue-nw",  "store_name": "Calgary 16th Avenue NW"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/calgary-17th-ave-se",    "store_name": "Calgary 17th Ave SE"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/calgary-aviation-road",  "store_name": "Calgary Aviation Road"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/calgary-bowness",        "store_name": "Calgary Bowness"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/calgary-foothills",      "store_name": "Calgary Foothills"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/calgary-forest-lawn",    "store_name": "Calgary Forest Lawn"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/calgary-macleod",        "store_name": "Calgary Macleod"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/calgary-marlborough",    "store_name": "Calgary Marlborough"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/calgary-mccall",         "store_name": "Calgary McCall"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/calgary-nolan-hill",     "store_name": "Calgary Nolan Hill"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/calgary-sunridge",       "store_name": "Calgary Sunridge"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/calgary-symons-valley",  "store_name": "Calgary Symons Valley"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/calgary-the-district",   "store_name": "Calgary The District"}
+            ],
+            "Edmonton": [
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-beverly",             "store_name": "Edmonton Beverly"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-clareview",           "store_name": "Edmonton Clareview"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-downtown",            "store_name": "Edmonton Downtown"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-eaux-claires",        "store_name": "Edmonton Eaux Claires"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-granville",           "store_name": "Edmonton Granville"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-killarney",           "store_name": "Edmonton Killarney"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-manning-town-centre", "store_name": "Edmonton Manning Town Centre"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-north-east",          "store_name": "Edmonton North East"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-northgate",           "store_name": "Edmonton Northgate"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-north-west",          "store_name": "Edmonton North West"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-south-common",        "store_name": "Edmonton South Common"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-south-ellerslie",     "store_name": "Edmonton South Ellerslie"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-tamarack",            "store_name": "Edmonton Tamarack"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-terra-losa",          "store_name": "Edmonton Terra Losa"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-terwillegar",         "store_name": "Edmonton Terwillegar"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-whyte-ave",           "store_name": "Edmonton Whyte Ave"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/edmonton-windermere-blvd",     "store_name": "Edmonton Windermere Blvd"}
+            ],
+            "Grande Prairie": [
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/grande-prairie",          "store_name": "Grande Prairie"},
+                {"url": "https://www.jiffylubeservice.ca/oil-change-locations/grande-prairie-highland", "store_name": "Grande Prairie Highland"}
+            ]
+        }
+    },
+    {
         "competitor": "Quick Lane",
         "website": "quicklane.ca",
         "cities": ["Edmonton", "Grande Prairie"],
