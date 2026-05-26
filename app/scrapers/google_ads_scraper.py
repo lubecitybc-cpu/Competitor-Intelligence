@@ -36,17 +36,27 @@ MAX_PER_COMPETITOR = 3
 # ---------------------------------------------------------------------------
 
 COMPETITORS: List[Dict] = [
-    # advertiser_ids accepts a list so multiple national/agency AR IDs can be combined.
-    # Ads are collected across all IDs then capped at MAX_PER_COMPETITOR total.
-    {"name": "Midas",                     "advertiser_ids": ["AR04579314025283715073"]},
-    {"name": "Lube Town",                 "advertiser_ids": ["AR07923297702782173185"]},
-    {"name": "Jiffy Lube",                "advertiser_ids": ["AR18032045877266219009"]},
-    {"name": "Great Canadian Oil Change", "advertiser_ids": ["AR06652422686691557377"]},
-    {"name": "Quick Lane",                "advertiser_ids": ["AR01146826087020363777"]},
-    {"name": "Valvoline",                 "advertiser_ids": ["AR06652422686691557377"]},
-    {"name": "Econo Lube",               "advertiser_ids": ["AR03728714169130680321"]},
-    {"name": "Lube FX Plus",             "advertiser_ids": ["AR07682908778362044417"]},
-    {"name": "Mr. Lube + Tires",         "advertiser_ids": ["AR00685141515294474241"]},
+    # advertiser_ids: list of AR IDs to try (national/agency level).
+    # brand_keywords: at least one must appear in title, snippet, or visible_link
+    #   (case-insensitive) otherwise the ad is skipped as unrelated.
+    {"name": "Midas",                     "advertiser_ids": ["AR04579314025283715073"],
+     "brand_keywords": ["midas"]},
+    {"name": "Lube Town",                 "advertiser_ids": ["AR07923297702782173185"],
+     "brand_keywords": ["lube town", "lubetown"]},
+    {"name": "Jiffy Lube",                "advertiser_ids": ["AR18032045877266219009"],
+     "brand_keywords": ["jiffy lube", "jiffylube"]},
+    {"name": "Great Canadian Oil Change", "advertiser_ids": ["AR06652422686691557377"],
+     "brand_keywords": ["great canadian", "gcoc"]},
+    {"name": "Quick Lane",                "advertiser_ids": ["AR01146826087020363777", "AR08559186921127936001", "AR17827749435640119297"],
+     "brand_keywords": ["quick lane", "quicklane"]},
+    {"name": "Valvoline",                 "advertiser_ids": ["AR06652422686691557377"],
+     "brand_keywords": ["valvoline"]},
+    {"name": "Econo Lube",               "advertiser_ids": ["AR03728714169130680321"],
+     "brand_keywords": ["econo lube", "econolube"]},
+    {"name": "Lube FX Plus",             "advertiser_ids": ["AR07682908778362044417"],
+     "brand_keywords": ["lube fx", "lubefx"]},
+    {"name": "Mr. Lube + Tires",         "advertiser_ids": ["AR00685141515294474241"],
+     "brand_keywords": ["mr. lube", "mr lube", "mrlube"]},
 ]
 
 
@@ -140,11 +150,21 @@ def _discount(title: str, desc: str) -> str:
 # Per-competitor scraper
 # ---------------------------------------------------------------------------
 
+def _is_brand_match(ad: Dict, keywords: List[str]) -> bool:
+    """Return True if any brand keyword appears in title, description, or displayed_link."""
+    haystack = " ".join([
+        ad.get("ad_title", ""),
+        ad.get("ad_description", ""),
+        ad.get("displayed_link", ""),
+    ]).lower()
+    return any(kw in haystack for kw in keywords)
+
+
 def _scrape_one_competitor(competitor: Dict) -> Dict:
     name = competitor["name"]
-    # Support both legacy single "advertiser_id" and new list "advertiser_ids"
     ar_ids: List[str] = competitor.get("advertiser_ids") or [competitor.get("advertiser_id", "")]
     ar_ids = [a for a in ar_ids if a]
+    brand_keywords: List[str] = [k.lower() for k in competitor.get("brand_keywords", [])]
     today = datetime.now().strftime("%Y-%m-%d")
     primary_url = f"https://adstransparency.google.com/advertiser/{ar_ids[0]}" if ar_ids else ""
 
@@ -175,6 +195,11 @@ def _scrape_one_competitor(competitor: Dict) -> Dict:
 
             if not ad:
                 logger.debug(f"[ads] {name}: no content in {creative_id}")
+                continue
+
+            # Skip ads that don't mention the brand anywhere
+            if brand_keywords and not _is_brand_match(ad, brand_keywords):
+                logger.debug(f"[ads] {name}: skipping unrelated ad {ad['ad_title']!r}")
                 continue
 
             title = ad["ad_title"]
