@@ -23,10 +23,10 @@ REVIEWS_DIR = DATA_DIR / "reviews"
 OUTPUT_DIR = DATA_DIR / "sheets_ready"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# 15 standard sheet columns (in order).  v2 rows carry all of these already.
+# 14 standard sheet columns (in order).  v2 rows carry all of these already.
 SHEET_COLUMNS = [
     "website", "page_url", "business_name", "google_reviews",
-    "service_name", "promo_description", "category", "contact",
+    "service_name", "promo_description", "category",
     "offer_details", "ad_title", "ad_text",
     "new_or_updated", "date_scraped",
     "city", "extraction_method",

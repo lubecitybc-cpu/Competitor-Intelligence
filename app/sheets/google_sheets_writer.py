@@ -40,7 +40,7 @@ CITY_TABS: List[Tuple[str, Optional[str]]] = [
     (" Grande Prairie Promos", "Grande Prairie"),  # leading space is intentional
 ]
 
-# 15 columns written to every tab, in this exact order.
+# 14 columns written to every tab, in this exact order.
 SHEET_COLUMNS = [
     "website",
     "page_url",
@@ -49,7 +49,6 @@ SHEET_COLUMNS = [
     "service_name",
     "promo_description",
     "category",
-    "contact",
     "offer_details",
     "ad_title",
     "ad_text",
@@ -59,8 +58,8 @@ SHEET_COLUMNS = [
     "extraction_method",
 ]
 
-# Last column letter for the 15-column range (A=1 … O=15).
-_LAST_COL = "O"
+# Last column letter for the 14-column range (A=1 … N=14).
+_LAST_COL = "N"
 
 from app.config.constants import ROOT
 from app.utils.logging_utils import setup_logger

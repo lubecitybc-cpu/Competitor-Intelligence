@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Competitor Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/motion@10.18.0/dist/motion.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f8fafc;--surface:#fff;--border:#e2e8f0;
+  --text:#0f172a;--muted:#64748b;--subtle:#f1f5f9;
+  --accent:#6366f1;--accent-bg:#eef2ff;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+
+/* ── Header ── */
+header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(255,255,255,.85);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  padding:12px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+}
+.header-left h1{font-size:16px;font-weight:700;letter-spacing:-.3px;color:var(--text)}
+.header-left span{font-size:11px;color:var(--muted);display:block;margin-top:1px}
+.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.filter-group{display:flex;align-items:center;gap:6px}
+.filter-group label{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+select{
+  background:var(--surface);color:var(--text);
+  border:1px solid var(--border);border-radius:8px;
+  padding:6px 10px;font-size:12px;font-family:inherit;
+  cursor:pointer;outline:none;transition:border-color .15s,box-shadow .15s;
+  appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;
+}
+select:hover{border-color:#94a3b8}
+select:focus{border-color:var(--accent);box-shadow:0 0 0 3px #eef2ff}
+.chip{
+  display:inline-flex;align-items:center;gap:5px;
+  background:var(--accent-bg);color:var(--accent);
+  border:1px solid #c7d2fe;border-radius:20px;
+  padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;
+  transition:background .15s;
+}
+.chip:hover{background:#e0e7ff}
+.chip .x{font-size:13px;line-height:1;opacity:.7}
+#activeChip{display:none}
+
+/* ── Layout ── */
+main{padding:24px 28px;max-width:1440px;margin:0 auto}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+@media(max-width:1024px){.grid-3{grid-template-columns:1fr 1fr}}
+@media(max-width:720px){.grid-2,.grid-3,.grid-5{grid-template-columns:1fr}}
+
+/* ── Cards ── */
+.card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:20px;
+  box-shadow:var(--shadow);
+  transition:box-shadow .2s,transform .2s;
+  opacity:0;transform:translateY(16px);  /* pre-animation state */
+}
+.card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.card h2{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:16px}
+
+/* ── KPI ── */
+.kpi{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:18px 20px;
+  box-shadow:var(--shadow);position:relative;overflow:hidden;
+  transition:box-shadow .2s,transform .2s;
+  opacity:0;transform:translateY(16px);
+}
+.kpi:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.kpi::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:var(--kpi-color,var(--accent));border-radius:12px 12px 0 0;
+}
+.kpi .val{font-size:30px;font-weight:700;line-height:1;margin-bottom:4px;color:var(--text)}
+.kpi .lbl{font-size:12px;color:var(--muted);font-weight:500}
+.kpi .sub{font-size:11px;color:#94a3b8;margin-top:6px}
+
+/* ── Spotlight ── */
+.spotlight{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+@media(max-width:720px){.spotlight{grid-template-columns:1fr}}
+.deal-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:16px 18px;
+  box-shadow:var(--shadow);position:relative;
+  transition:box-shadow .2s,transform .2s;
+  opacity:0;transform:translateY(16px);
+}
+.deal-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.deal-card .disc-badge{
+  display:inline-block;font-size:22px;font-weight:700;
+  color:var(--accent);margin-bottom:4px;
+}
+.deal-card .comp{font-size:13px;font-weight:600;color:var(--text)}
+.deal-card .svc{font-size:12px;color:var(--muted);margin-top:2px}
+.deal-card .desc{font-size:11px;color:#94a3b8;margin-top:8px;line-height:1.5}
+.deal-rank{
+  position:absolute;top:14px;right:14px;
+  width:22px;height:22px;border-radius:50%;
+  background:var(--subtle);color:var(--muted);
+  font-size:10px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* ── Section headers ── */
+.section-label{
+  font-size:13px;font-weight:600;color:var(--text);
+  margin:24px 0 12px;display:flex;align-items:center;gap:8px;
+}
+.section-label .count{
+  font-size:11px;font-weight:500;color:var(--muted);
+  background:var(--subtle);border-radius:20px;padding:2px 8px;
+}
+
+/* ── Tables ── */
+.table-wrap{max-height:380px;overflow-y:auto;border-radius:10px;border:1px solid var(--border)}
+.table-wrap::-webkit-scrollbar{width:4px}
+.table-wrap::-webkit-scrollbar-track{background:transparent}
+.table-wrap::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead tr{background:var(--subtle)}
+thead th{
+  padding:10px 12px;text-align:left;font-size:10.5px;font-weight:600;
+  color:var(--muted);text-transform:uppercase;letter-spacing:.5px;
+  position:sticky;top:0;background:var(--subtle);white-space:nowrap;
+  cursor:pointer;user-select:none;
+}
+thead th:hover{color:var(--text)}
+thead th.sorted-asc::after{content:' ↑';color:var(--accent)}
+thead th.sorted-desc::after{content:' ↓';color:var(--accent)}
+tbody tr{border-bottom:1px solid #f1f5f9;transition:background .12s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:#fafbff}
+tbody td{padding:9px 12px;vertical-align:middle}
+.badge{
+  display:inline-flex;align-items:center;
+  padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;
+  white-space:nowrap;
+}
+.b-green{background:#dcfce7;color:#16a34a}
+.b-amber{background:#fef3c7;color:#d97706}
+.b-blue{background:#dbeafe;color:#2563eb}
+.b-purple{background:#f3e8ff;color:#7c3aed}
+.b-red{background:#fee2e2;color:#dc2626}
+.b-gray{background:var(--subtle);color:var(--muted)}
+.comp-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.comp-cell{display:flex;align-items:center;gap:7px;font-weight:500}
+.search-input{
+  background:var(--surface);color:var(--text);
+  border:1px solid var(--border);border-radius:8px;
+  padding:6px 10px;font-size:12px;font-family:inherit;
+  outline:none;width:200px;transition:border-color .15s,box-shadow .15s;
+}
+.search-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px #eef2ff}
+.table-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.empty{color:var(--muted);text-align:center;padding:28px;font-size:13px}
+
+/* ── Chart tooltip override ── */
+#chartTooltip{
+  position:fixed;background:var(--surface);color:var(--text);
+  border:1px solid var(--border);border-radius:10px;
+  padding:10px 14px;box-shadow:var(--shadow-md);
+  pointer-events:none;font-size:12px;z-index:200;
+  opacity:0;transition:opacity .12s;min-width:160px;
+}
+#chartTooltip .tt-title{font-weight:600;margin-bottom:6px;font-size:12.5px;color:var(--text)}
+#chartTooltip .tt-row{display:flex;align-items:center;gap:6px;padding:2px 0;color:var(--muted)}
+#chartTooltip .tt-val{font-weight:600;color:var(--text);margin-left:auto}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Competitor Intelligence</h1>
+    <span>Last updated May 26, 2026</span>
+  </div>
+  <div class="header-right">
+    <div class="filter-group">
+      <label>City</label>
+      <select id="cityFilter" onchange="applyFilters()">
+        <option value="">All Cities</option>
+        <option>Edmonton</option>
+        <option>Calgary</option>
+        <option>Grande Prairie</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Competitor</label>
+      <select id="compFilter" onchange="applyFilters()">
+        <option value="">All Competitors</option>
+      </select>
+    </div>
+    <div id="activeChip" class="chip" onclick="clearChartSel()">
+      <span id="chipLabel"></span>
+      <span class="x">✕</span>
+    </div>
+  </div>
+</header>
+
+<div id="chartTooltip"></div>
+
+<main>
+  <!-- KPIs -->
+  <div class="grid-5" id="kpiRow"></div>
+
+  <!-- Top deals spotlight -->
+  <div class="section-label">Top Discounts <span class="count" id="spotlightCount"></span></div>
+  <div class="spotlight" id="spotlightRow"></div>
+
+  <!-- Charts row 1 -->
+  <div class="grid-2">
+    <div class="card">
+      <h2>Promotions per Competitor</h2>
+      <canvas id="promosBar" height="210"></canvas>
+    </div>
+    <div class="card">
+      <h2>Google Ads per Competitor</h2>
+      <canvas id="adsBar" height="210"></canvas>
+    </div>
+  </div>
+
+  <!-- Charts row 2 -->
+  <div class="grid-3">
+    <div class="card">
+      <h2>Promo Categories</h2>
+      <canvas id="catDonut" height="210"></canvas>
+    </div>
+    <div class="card">
+      <h2>Promos by City</h2>
+      <canvas id="cityDonut" height="210"></canvas>
+    </div>
+    <div class="card">
+      <h2>Discount Buckets</h2>
+      <canvas id="discBar" height="210"></canvas>
+    </div>
+  </div>
+
+  <!-- Charts row 3 -->
+  <div class="grid-2">
+    <div class="card">
+      <h2>Ads — Discount vs No Discount</h2>
+      <canvas id="stackedBar" height="200"></canvas>
+    </div>
+    <div class="card">
+      <h2>Competitors with Discount Ads</h2>
+      <canvas id="discAdsBar" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- Deals table -->
+  <div class="section-label">
+    Active Promotions <span class="count" id="promoCount"></span>
+  </div>
+  <div class="card" style="padding:16px;margin-bottom:16px">
+    <div class="table-header">
+      <div style="font-size:11px;color:var(--muted)">Click a chart bar to filter by competitor</div>
+      <input class="search-input" id="promoSearch" placeholder="Search promotions…" oninput="renderTable()"/>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortTable('promos','business_name',this)">Competitor</th>
+            <th onclick="sortTable('promos','city',this)">City</th>
+            <th onclick="sortTable('promos','service_name',this)">Service</th>
+            <th onclick="sortTable('promos','discount_value',this)">Discount</th>
+            <th>Offer</th>
+            <th onclick="sortTable('promos','expiry_date',this)">Expiry</th>
+            <th onclick="sortTable('promos','category',this)">Category</th>
+          </tr>
+        </thead>
+        <tbody id="promoTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Ads table -->
+  <div class="section-label">
+    Google Ads Copy <span class="count" id="adsCount"></span>
+  </div>
+  <div class="card" style="padding:16px;margin-bottom:40px">
+    <div class="table-header">
+      <div style="font-size:11px;color:var(--muted)">All text creatives from Google Ads Transparency Center</div>
+      <input class="search-input" id="adsSearch" placeholder="Search ads…" oninput="renderAdsTable()"/>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortTable('ads','business_name',this)">Competitor</th>
+            <th onclick="sortTable('ads','ad_title',this)">Headline</th>
+            <th>Description</th>
+            <th onclick="sortTable('ads','discount_value',this)">Discount</th>
+            <th>Domain</th>
+          </tr>
+        </thead>
+        <tbody id="adsTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+// ─── Data ───────────────────────────────────────────────────────────────────
+const ADS    = [{"business_name": "Midas", "ad_title": "Unbeatable Prices At Midas®", "ad_description": "Shop new tires at Midas®. Affordable brand name tires. Call or request appointment.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR11515155316006191105/creative/CR04785064991944343553?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Midas", "ad_title": "Plus Free Brake Check", "ad_description": "Midas® locally owned & trusted. Best prices and quality service. Find a store near you.", "discount_value": "Free Brake", "ad_link": "https://adstransparency.google.com/advertiser/AR11515155316006191105/creative/CR05188284630591078401?region=CA&amp;format=TEXT", "displayed_link": "midas.com", "date_scraped": "2026-05-26"}, {"business_name": "Midas", "ad_title": "McCoy's Lawn & Garden Service", "ad_description": "Kubota Mowers Minimize Operator Fatigue With Comfortable Controls & Deluxe Seating.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR11515155316006191105/creative/CR02862223586817474561?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Midas", "ad_title": "Midas® Total Car Care", "ad_description": "Oil change savings going on now at Midas®. Call or request an appointment online.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR11515155316006191105/creative/CR07232450606902804481?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Midas", "ad_title": "Putting An End To Bad Service", "ad_description": "Shop affordable name-brand tires at Midas®. Call the store or request an appt online.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR11515155316006191105/creative/CR07429927018419978241?region=CA&amp;format=TEXT", "displayed_link": "midas.com", "date_scraped": "2026-05-26"}, {"business_name": "Midas", "ad_title": "Midas® Oil Change Sale", "ad_description": "Midas® locally owned & trusted. Best prices and quality service. Find a store near you.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR11515155316006191105/creative/CR07438789219578806273?region=CA&amp;format=TEXT", "displayed_link": "midas.com", "date_scraped": "2026-05-26"}, {"business_name": "Midas", "ad_title": "Alignment and Tire Special", "ad_description": "Visit your local Midas for $20 off an alignment with purchase of 4 tires.", "discount_value": "$20 off", "ad_link": "https://adstransparency.google.com/advertiser/AR11515155316006191105/creative/CR17391760888742019073?region=CA&amp;format=TEXT", "displayed_link": "midas.com", "date_scraped": "2026-05-26"}, {"business_name": "Midas", "ad_title": "Affordable Mechanic Services", "ad_description": "Schedule your wheel alignment at Midas®. Locally owned and trusted. Call for an estimate.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR11515155316006191105/creative/CR05731381527183360001?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Midas", "ad_title": "Trust the experts at Midas® for your next oil change. Call or schedule online today.", "ad_description": "Auto repair shop", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR11515155316006191105/creative/CR11572287872920715265?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Midas", "ad_title": "Union Farm Equipment", "ad_description": "Kubota's Next-Level Engine Has Increased Power, Cleaner Emissions & Better Fuel Economy.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR11515155316006191105/creative/CR11270549644234457089?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Midas", "ad_title": "Midas® Trusted Local Service", "ad_description": "Midas® is putting an end to bad service. Request an appointment for stress-free car care.", "discount_value": "free car", "ad_link": "https://adstransparency.google.com/advertiser/AR11515155316006191105/creative/CR01492698918603980801?region=CA&amp;format=TEXT", "displayed_link": "midas.com", "date_scraped": "2026-05-26"}, {"business_name": "Lube Town", "ad_title": "Change Tires While You Wait", "ad_description": "Save Your Winter Tires Without An Appointment. Drive Thru Now! Only 2 Min Away.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR07563986098917998593?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Lube Town", "ad_title": "Canadian Owned. Canadian Oil.", "ad_description": "Buy Canadian. Canadian Owned.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR13500328542117822465?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Lube Town", "ad_title": "No Appointment Needed", "ad_description": "No Appointment Needed", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR00296291342571536385?region=CA&amp;format=TEXT", "displayed_link": "lubetown.com", "date_scraped": "2026-05-26"}, {"business_name": "Lube Town", "ad_title": "Canadian Owned. Canadian Made Oil. Express Oil change", "ad_description": "<dynamically generated based on landing page content>", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR12129263432344010753?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Lube Town", "ad_title": "$15 Off Oil Change", "ad_description": "Canadian Owned. Canadian Oil.", "discount_value": "$15 Off", "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR10647579653155323905?region=CA&amp;format=TEXT", "displayed_link": "lubetown.com", "date_scraped": "2026-05-26"}, {"business_name": "Lube Town", "ad_title": "Drive Thru Rock Chip Repair", "ad_description": "Canadian Owned. Buy Canadian.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR08940196424893595649?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Lube Town", "ad_title": "<dynamically generated based on landing page content>", "ad_description": "No Appointment Needed", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR09914945660812001281?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Lube Town", "ad_title": "Drive Thru Oil Change", "ad_description": "<dynamically generated based on landing page content>", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR08783322314910466049?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Great Canadian Oil Change", "ad_title": "Great Canadian Oil Change", "ad_description": "Hurry and save up to $15 on your next oil change. Get your coupon today!", "discount_value": "$15", "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR16032089528340578305?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Great Canadian Oil Change", "ad_title": "$15 Off Your Next Oil Change", "ad_description": "With over 115 locations and growing, we are the best choice for drive-thru oil changes.", "discount_value": "$15 Off", "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR15641660319481200641?region=CA&amp;format=TEXT", "displayed_link": "gcoc.ca", "date_scraped": "2026-05-26"}, {"business_name": "Great Canadian Oil Change", "ad_title": "Drive-Thru Oil Change", "ad_description": "Every GCOC oil change comes with the superior protection of Valvoline’s trusted products.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR02561907911429193729?region=CA&amp;format=TEXT", "displayed_link": "gcoc.ca", "date_scraped": "2026-05-26"}, {"business_name": "Great Canadian Oil Change", "ad_title": "15 Minute Oil Change", "ad_description": "Every GCOC oil change comes with the superior protection of Valvoline’s trusted products.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR02210347589662932993?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Great Canadian Oil Change", "ad_title": "www.gcoc.ca/", "ad_description": "Drive-Thru Oil Change", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR17169453716508508161?region=CA&amp;format=TEXT", "displayed_link": "gcoc.ca", "date_scraped": "2026-05-26"}, {"business_name": "Quick Lane", "ad_title": "Quick Lane at San Tan Ford", "ad_description": "Quick Lane is your go-to place for new tires for all vehicle makes and models.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR01146826087020363777/creative/CR15872048756149977089?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Valvoline", "ad_title": "Great Canadian Oil Change", "ad_description": "Hurry and save up to $15 on your next oil change. Get your coupon today!", "discount_value": "$15", "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR16032089528340578305?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Valvoline", "ad_title": "Drive-Thru Oil Change", "ad_description": "Every GCOC oil change comes with the superior protection of Valvoline’s trusted products.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR02561907911429193729?region=CA&amp;format=TEXT", "displayed_link": "gcoc.ca", "date_scraped": "2026-05-26"}, {"business_name": "Valvoline", "ad_title": "15 Minute Oil Change", "ad_description": "Every GCOC oil change comes with the superior protection of Valvoline’s trusted products.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR02210347589662932993?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Valvoline", "ad_title": "www.gcoc.ca/", "ad_description": "Drive-Thru Oil Change", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR17169453716508508161?region=CA&amp;format=TEXT", "displayed_link": "gcoc.ca", "date_scraped": "2026-05-26"}, {"business_name": "Econo Lube", "ad_title": "EconoLube", "ad_description": "30+ Years of Satisfied Customers and Service Excellence. Speak With Our Experts. Your One-Stop Shop in Spruce Grove for Oil Changes, Tire Services, & Vehicle Repairs", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR03728714169130680321/creative/CR10069296571998011393?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Econo Lube", "ad_title": "Car Repairs Spruce Grove", "ad_description": "Heating, AC, Steering, Breaks— We Fix It All. Book Today.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR03728714169130680321/creative/CR13446858827802607617?region=CA&amp;format=TEXT", "displayed_link": "econolube.ca", "date_scraped": "2026-05-26"}, {"business_name": "Econo Lube", "ad_title": "Quick Oil Change", "ad_description": "Specializing In Tire Servicing, Oil, & Fluid Changes. We Are Here For You. Call Us Today.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR03728714169130680321/creative/CR15317188562609242113?region=CA&amp;format=TEXT", "displayed_link": "econolube.ca", "date_scraped": "2026-05-26"}, {"business_name": "Lube FX Plus", "ad_title": "Fast and quick service", "ad_description": "Check out our LubeFX + coupons basic oil special for $34.99 - click here for more details.", "discount_value": "$34.99", "ad_link": "https://adstransparency.google.com/advertiser/AR07682908778362044417/creative/CR12717870042922876929?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Lube FX Plus", "ad_title": "Coupons and Tire Discounts", "ad_description": "Best service and prices in Edmonton. New tires, express service, fixing flats in minutes.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR07682908778362044417/creative/CR07767133353324576769?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Lube FX Plus", "ad_title": "Same-Day AC Services", "ad_description": "Best service and prices in Edmonton. Quick lube, tire service and more.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR07682908778362044417/creative/CR12054279548238299137?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Lube FX Plus", "ad_title": "Drive in & Out, We Got You", "ad_description": "Finance Your Service + Tires in Edmonton - Same Day, Fast - No Appointment Needed", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR07682908778362044417/creative/CR01958399130132807681?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Lube FX Plus", "ad_title": "www.lubefx.com/", "ad_description": "Same Day $34.99 Oil Change - $25 Off Synthetics", "discount_value": "$34.99", "ad_link": "https://adstransparency.google.com/advertiser/AR07682908778362044417/creative/CR00191678910042210305?region=CA&amp;format=TEXT", "displayed_link": "lubefx.com", "date_scraped": "2026-05-26"}, {"business_name": "Lube FX Plus", "ad_title": "Get New Tires at LubeFX", "ad_description": "Check out our LubeFX + coupons basic oil special for $34.99 - click here for more details.", "discount_value": "$34.99", "ad_link": "https://adstransparency.google.com/advertiser/AR07682908778362044417/creative/CR08347809435640397825?region=CA&amp;format=TEXT", "displayed_link": "", "date_scraped": "2026-05-26"}, {"business_name": "Mr. Lube + Tires", "ad_title": "High-Quality Maintenance", "ad_description": "Taking Care of Your Car on Your Schedule, Not Ours. Visit Mr. Lube + Tires Today.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR00685141515294474241/creative/CR09476588207521923073?region=CA&amp;format=TEXT", "displayed_link": "mrlube.com", "date_scraped": "2026-05-26"}, {"business_name": "Mr. Lube + Tires", "ad_title": "Mr. Lube® + Tires", "ad_description": "www.mrlube.com/", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR00685141515294474241/creative/CR06830400848628023297?region=CA&amp;format=TEXT", "displayed_link": "mrlube.com", "date_scraped": "2026-05-26"}, {"business_name": "Mr. Lube + Tires", "ad_title": "No Appointment Needed", "ad_description": "Swing by Your Neighbourhood Mr. Lube + Tires, We’ll Take Care of Your Vehicle Right Away.", "discount_value": "", "ad_link": "https://adstransparency.google.com/advertiser/AR00685141515294474241/creative/CR07106124280013783041?region=CA&amp;format=TEXT", "displayed_link": "mrlube.com", "date_scraped": "2026-05-26"}];
+const PROMOS = [{"website": "econolube.ca", "page_url": "https://econolube.ca/", "business_name": "Econo Lube", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "Free tire changeover with any oil change at Econo Lube (expires May 30).", "category": "Oil Change", "contact": "", "location": "Edmonton", "offer_details": "Free Tire Changeover With Your Oil Change — Offer Ends May 30", "ad_title": "Free Tire Changeover With Your Oil Change — Offer Ends May 30", "ad_text": "Free Tire Changeover With Your Oil Change — Offer Ends May 30", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "store_name": "Econo Lube", "source_scope": "city_store", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "free", "coupon_code": null, "expiry_date": "May 30", "promotion_title": "Free Tire Changeover With Your Oil Change — Offer Ends May 30", "normalized_title": "free tire changeover with your oil change — offer ends may 30", "applicable_cities": ["Edmonton"], "duplicate_group_id": "econolube-001", "duplicate_group_total": 7, "source_image": ""}, {"website": "gcoc.ca", "page_url": "https://www.gcoc.ca/", "business_name": "Great Canadian Oil Change", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$6 off oil change at Great Canadian Oil Change (code 999W01)", "category": "Oil Change", "contact": "National", "location": "National", "offer_details": "$6 Off* Any Oil Change", "ad_title": "$6 Off* Any Oil Change", "ad_text": "Stop by soon and save now on your next oil change. Stop by soon and save now on your next oil change. Stop by soon and save now on your next oil change. Email Text 999W01 $6 Off* Any Oil Change Expires: June 7, 2026 *Includes 5 or 6 litres of oil depending on store location (diesel litres may vary; see stores for details), oil filter (premium extra), lube & maintenance check; plus tax, if applicable; not valid with same service offers / discounts (including fleet); see store fo", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Calgary", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$6", "coupon_code": "999W01", "expiry_date": "June 7, 2026", "promotion_title": "$6 Off* Any Oil Change", "normalized_title": "$6 off* any oil change", "applicable_cities": ["Calgary", "Edmonton", "Grande Prairie"], "duplicate_group_id": "gcoc-001", "duplicate_group_total": 3, "source_image": ""}, {"website": "gcoc.ca", "page_url": "https://www.gcoc.ca/", "business_name": "Great Canadian Oil Change", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$6 off oil change at Great Canadian Oil Change (code 999W01)", "category": "Oil Change", "contact": "National", "location": "National", "offer_details": "$6 Off* Any Oil Change", "ad_title": "$6 Off* Any Oil Change", "ad_text": "Stop by soon and save now on your next oil change. Stop by soon and save now on your next oil change. Stop by soon and save now on your next oil change. Email Text 999W01 $6 Off* Any Oil Change Expires: June 7, 2026 *Includes 5 or 6 litres of oil depending on store location (diesel litres may vary; see stores for details), oil filter (premium extra), lube & maintenance check; plus tax, if applicable; not valid with same service offers / discounts (including fleet); see store fo", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$6", "coupon_code": "999W01", "expiry_date": "June 7, 2026", "promotion_title": "$6 Off* Any Oil Change", "normalized_title": "$6 off* any oil change", "applicable_cities": ["Calgary", "Edmonton", "Grande Prairie"], "duplicate_group_id": "gcoc-001", "duplicate_group_total": 3, "source_image": ""}, {"website": "gcoc.ca", "page_url": "https://www.gcoc.ca/", "business_name": "Great Canadian Oil Change", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$6 off oil change at Great Canadian Oil Change (code 999W01)", "category": "Oil Change", "contact": "National", "location": "National", "offer_details": "$6 Off* Any Oil Change", "ad_title": "$6 Off* Any Oil Change", "ad_text": "Stop by soon and save now on your next oil change. Stop by soon and save now on your next oil change. Stop by soon and save now on your next oil change. Email Text 999W01 $6 Off* Any Oil Change Expires: June 7, 2026 *Includes 5 or 6 litres of oil depending on store location (diesel litres may vary; see stores for details), oil filter (premium extra), lube & maintenance check; plus tax, if applicable; not valid with same service offers / discounts (including fleet); see store fo", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Grande Prairie", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$6", "coupon_code": "999W01", "expiry_date": "June 7, 2026", "promotion_title": "$6 Off* Any Oil Change", "normalized_title": "$6 off* any oil change", "applicable_cities": ["Calgary", "Edmonton", "Grande Prairie"], "duplicate_group_id": "gcoc-001", "duplicate_group_total": 3, "source_image": ""}, {"website": "jiffylubeservice.ca", "page_url": "https://www.jiffylubeservice.ca/coupons", "business_name": "Jiffy Lube", "google_reviews": "4.4 ⭐ | 291 reviews", "service_name": "Oil Change", "promo_description": "$10 off Pennzoil Synthetic oil change at Jiffy Lube (code ZE4Y82).", "category": "Oil Change", "contact": "", "location": "National", "offer_details": "$10 off Pennzoil Synthetic oil change at Jiffy Lube (code ZE4Y82).", "ad_title": "oil change", "ad_text": "Off a Pennzoil SyntheticJiffy Lube Oil ChangeExpires: May 31st, 2026 I understand I can unsubscribe or opt out at any time.Your Jiffy Lube Coupon Is On It's Way!We've sent your coupon link to your email. Be sure to check your inbox, and if you don't see it, take a peek in your spam or promotions folder. It may take a couple of minutes t", "new_or_updated": "new", "date_scraped": "2026-05-12", "promotion_title": "oil change", "discount_value": "$10", "coupon_code": "ZE4Y82", "expiry_date": "2026-05-31", "normalized_title": "oil change", "city": "Calgary", "store_name": "National", "source_scope": "national", "extraction_method": "text", "confidence": "high", "needs_review": false, "applicable_cities": ["Calgary", "Edmonton", "Grande Prairie"], "source_text_type": "html_card", "duplicate_of_national": false, "duplicate_group_id": "d=usd:10|c=ZE4Y82"}, {"website": "jiffylubeservice.ca", "page_url": "https://www.jiffylubeservice.ca/coupons", "business_name": "Jiffy Lube", "google_reviews": "4.4 ⭐ | 291 reviews", "service_name": "Oil Change", "promo_description": "$10 off Pennzoil Synthetic oil change at Jiffy Lube (code ZE4Y82).", "category": "Oil Change", "contact": "", "location": "National", "offer_details": "$10 off Pennzoil Synthetic oil change at Jiffy Lube (code ZE4Y82).", "ad_title": "oil change", "ad_text": "Off a Pennzoil SyntheticJiffy Lube Oil ChangeExpires: May 31st, 2026 I understand I can unsubscribe or opt out at any time.Your Jiffy Lube Coupon Is On It's Way!We've sent your coupon link to your email. Be sure to check your inbox, and if you don't see it, take a peek in your spam or promotions folder. It may take a couple of minutes t", "new_or_updated": "new", "date_scraped": "2026-05-12", "promotion_title": "oil change", "discount_value": "$10", "coupon_code": "ZE4Y82", "expiry_date": "2026-05-31", "normalized_title": "oil change", "city": "Edmonton", "store_name": "National", "source_scope": "national", "extraction_method": "text", "confidence": "high", "needs_review": false, "applicable_cities": ["Calgary", "Edmonton", "Grande Prairie"], "source_text_type": "html_card", "duplicate_of_national": false, "duplicate_group_id": "d=usd:10|c=ZE4Y82"}, {"website": "jiffylubeservice.ca", "page_url": "https://www.jiffylubeservice.ca/coupons", "business_name": "Jiffy Lube", "google_reviews": "4.4 ⭐ | 291 reviews", "service_name": "Oil Change", "promo_description": "$10 off Pennzoil Synthetic oil change at Jiffy Lube (code ZE4Y82).", "category": "Oil Change", "contact": "", "location": "National", "offer_details": "$10 off Pennzoil Synthetic oil change at Jiffy Lube (code ZE4Y82).", "ad_title": "oil change", "ad_text": "Off a Pennzoil SyntheticJiffy Lube Oil ChangeExpires: May 31st, 2026 I understand I can unsubscribe or opt out at any time.Your Jiffy Lube Coupon Is On It's Way!We've sent your coupon link to your email. Be sure to check your inbox, and if you don't see it, take a peek in your spam or promotions folder. It may take a couple of minutes t", "new_or_updated": "new", "date_scraped": "2026-05-12", "promotion_title": "oil change", "discount_value": "$10", "coupon_code": "ZE4Y82", "expiry_date": "2026-05-31", "normalized_title": "oil change", "city": "Grande Prairie", "store_name": "National", "source_scope": "national", "extraction_method": "text", "confidence": "high", "needs_review": false, "applicable_cities": ["Calgary", "Edmonton", "Grande Prairie"], "source_text_type": "html_card", "duplicate_of_national": false, "duplicate_group_id": "d=usd:10|c=ZE4Y82"}, {"website": "lubefx.com", "page_url": "https://lubefx.com/lubefx-coupons/", "business_name": "LubeFx Plus", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$20 off OIL CHANGE at LubeFx Plus.", "category": "Oil Change", "contact": "", "location": "Edmonton", "offer_details": "LUBEFX+ COUPONS $20 OFF OIL CHANGE", "ad_title": "LUBEFX+ COUPONS $20 OFF OIL CHANGE", "ad_text": "LUBEFX+ COUPONS $20 OFF OIL CHANGE", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "store_name": "LubeFx Plus", "source_scope": "city_store", "extraction_method": "text", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$20", "coupon_code": null, "expiry_date": null, "promotion_title": "LUBEFX+ COUPONS $20 OFF OIL CHANGE", "normalized_title": "lubefx+ coupons $20 off oil change", "applicable_cities": ["Edmonton"], "duplicate_group_id": "lubefx-001", "duplicate_group_total": 1, "source_image": ""}, {"website": "lubefx.com", "page_url": "https://lubefx.com/lubefx-coupons/", "business_name": "LubeFx Plus", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$20 off OIL CHANGE at LubeFx Plus.", "category": "Oil Change", "contact": "", "location": "Edmonton", "offer_details": "LUBEFX+ COUPONS $20 OFF ANY DIESEL OIL CHANGE", "ad_title": "LUBEFX+ COUPONS $20 OFF ANY DIESEL OIL CHANGE", "ad_text": "LUBEFX+ COUPONS $20 OFF ANY DIESEL OIL CHANGE", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "store_name": "LubeFx Plus", "source_scope": "city_store", "extraction_method": "text", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$20", "coupon_code": null, "expiry_date": null, "promotion_title": "LUBEFX+ COUPONS $20 OFF ANY DIESEL OIL CHANGE", "normalized_title": "lubefx+ coupons $20 off any diesel oil change", "applicable_cities": ["Edmonton"], "duplicate_group_id": "lubefx-002", "duplicate_group_total": 1, "source_image": ""}, {"website": "lubefx.com", "page_url": "https://lubefx.com/lubefx-coupons/", "business_name": "LubeFx Plus", "google_reviews": "NA", "service_name": "Tire Sales", "promo_description": "$100 off tire sales at LubeFx Plus.", "category": "Tire Sales", "contact": "", "location": "Edmonton", "offer_details": "LUBEFX+ COUPONS $100 OFF ANY SET OF TIRES", "ad_title": "LUBEFX+ COUPONS $100 OFF ANY SET OF TIRES", "ad_text": "LUBEFX+ COUPONS $100 OFF ANY SET OF TIRES", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "store_name": "LubeFx Plus", "source_scope": "city_store", "extraction_method": "text", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$100", "coupon_code": null, "expiry_date": null, "promotion_title": "LUBEFX+ COUPONS $100 OFF ANY SET OF TIRES", "normalized_title": "lubefx+ coupons $100 off any set of tires", "applicable_cities": ["Edmonton"], "duplicate_group_id": "lubefx-003", "duplicate_group_total": 1, "source_image": ""}, {"website": "lubefx.com", "page_url": "https://lubefx.com/lubefx-coupons/", "business_name": "LubeFx Plus", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "Basic oil change special for $34.99 at LubeFx Plus.", "category": "Oil Change", "contact": "", "location": "Edmonton", "offer_details": "BASIC OIL $34.99", "ad_title": "BASIC OIL $34.99", "ad_text": "YOUR\nCAR-CARE\nPROS.\nLUBE X\nQUICK LUBE + TIRES\nKEEPING YOU Maring FORWARD!\nBASIC OIL $34.99\nSPECIAL\nUP TO 4 LITRES (5W20, 5W30)\ndexos\n'Additional $5 OFF by closing offer'\ndoes not apply to this offer deal.\nThis Coupon Will Include Up to 4 Litres of Conventional\nOil, Basic Oil Filter, and a Free 24 Point Fluid Inspection.\nTaxes and $5.99 Enviromental fee will be extra.", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "store_name": "LubeFx Plus", "source_scope": "city_store", "extraction_method": "image_ocr", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$34.99", "coupon_code": null, "expiry_date": null, "promotion_title": "BASIC OIL $34.99", "normalized_title": "basic oil $34.99", "applicable_cities": ["Edmonton"], "duplicate_group_id": "lubefx-004", "duplicate_group_total": 1, "source_image": "https://lubefx.com/wp-content/uploads/2023/07/Coupon-LubeFX-34.99-Deal-Coupon-1024x398.png"}, {"website": "lubefx.com", "page_url": "https://lubefx.com/lubefx-coupons/", "business_name": "LubeFx Plus", "google_reviews": "NA", "service_name": "Tire Rotation", "promo_description": "$25 off TIRE ROTATION at LubeFx Plus.", "category": "Tire Rotation", "contact": "", "location": "Edmonton", "offer_details": "$25 TIRE ROTATION $5499", "ad_title": "$25 TIRE ROTATION $5499", "ad_text": "LUBE FX+\nQUICK LUBE + TIRES\nENJOY\nSAME-DAY\nTIRE SERVICE.\nNO APPOINTMENT\nNEEDED.\nWWW.LUBEFX.COM\nKEEPING YOU Moving FORWARD!\nReg. $79.99\n$25 TIRE ROTATION $5499\nOFF OR TIRE SWAP\n$15\nTIRE MOUNT\nOFF & BALANCING\nCARS\n& SUV'S\n$13999\nTRUCKS &\nLOW PRO'S\n$174,99", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "store_name": "LubeFx Plus", "source_scope": "city_store", "extraction_method": "image_ocr", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$25", "coupon_code": null, "expiry_date": null, "promotion_title": "$25 TIRE ROTATION $5499", "normalized_title": "$25 tire rotation $5499", "applicable_cities": ["Edmonton"], "duplicate_group_id": "lubefx-005", "duplicate_group_total": 1, "source_image": "https://lubefx.com/wp-content/uploads/2024/09/LubeFX-Tire-Rotation-Website-Coupon-2-1024x398.jpg"}, {"website": "lubefx.com", "page_url": "https://lubefx.com/lubefx-coupons/", "business_name": "LubeFx Plus", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$20 off OIL CHANGE at LubeFx Plus.", "category": "Oil Change", "contact": "", "location": "Edmonton", "offer_details": "$20 OFF $40 OFF", "ad_title": "$20 OFF $40 OFF", "ad_text": "KEEP YOUR\nDIESEL ENGINE\nRUNNING COOL AND\nSMOOTH, WITH\nGREAT SAVINGS\nGuaranteed!\nLUBE FX+\nX\nLUBE FX+\n$20 OFF $40 OFF\nANY DIESEL OIL PACKAGE\n(10W30, 15W40, & 5W40)\nANY DRIVELINE AND/OR\nFUEL FILTER SERVICE.\nServices include:\nDifferentials (80w90,\n75w90 & 75w140),\nTransfer Case &/or\nMobi\nFuel Filter Change.\nDelv\nMobil\nDelvac\nMobil 1\nFOLLOW US\nLUBEFXPLUS\nLUBEFX.COM\nNO APPOINTMENT NEEDED.\nSAME-DAY, WARRANTY APPROVED SERVICE.\n$40 CAN BE APPLIED TO ANY DIESEL OIL CHANGE PACKAGE.\nMobil 1\nNO APPOINTMENT N", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "store_name": "LubeFx Plus", "source_scope": "city_store", "extraction_method": "image_ocr", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$20", "coupon_code": null, "expiry_date": null, "promotion_title": "$20 OFF $40 OFF", "normalized_title": "$20 off $40 off", "applicable_cities": ["Edmonton"], "duplicate_group_id": "lubefx-006", "duplicate_group_total": 1, "source_image": "https://lubefx.com/wp-content/uploads/2025/05/LubeFX-___-2025-Diesel-Oil-Package-Coupon-1024x512-.jpg"}, {"website": "lubefx.com", "page_url": "https://lubefx.com/lubefx-coupons/", "business_name": "LubeFx Plus", "google_reviews": "NA", "service_name": "Tire Sales", "promo_description": "$100 off tire + oil package at LubeFx Plus.", "category": "Tire Sales", "contact": "", "location": "Edmonton", "offer_details": "$100 OFF ANY SET OF TIRES", "ad_title": "$100 OFF ANY SET OF TIRES", "ad_text": "LUBE\nBUY &\nFINANCE\nYOUR TIRES\nWITH US.\nWWW.LUBEFX.COM\nNO INTEREST. NO PAYMENTS FOR 18 MONTHS. GUARANTEED APPROVAL.\n$100 OFF ANY SET OF TIRES\nPLUS FREE Oil Change of your choice\n(Diesels or European Oil not included)\nQTIRE STORAGE AVAILABLE\n°\nEXPRESS TIRE SERVICE\nNO APPOINTMENT NEEDED.\nENNE NINE", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "store_name": "LubeFx Plus", "source_scope": "city_store", "extraction_method": "image_ocr", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$100", "coupon_code": null, "expiry_date": null, "promotion_title": "$100 OFF ANY SET OF TIRES", "normalized_title": "$100 off any set of tires", "applicable_cities": ["Edmonton"], "duplicate_group_id": "lubefx-007", "duplicate_group_total": 1, "source_image": "https://lubefx.com/wp-content/uploads/2023/07/LubeFX-_-Tire-Oil-Deal-Coupon-_-250222-copy-1024x398-1.jpg"}, {"website": "lubefx.com", "page_url": "https://lubefx.com/lubefx-rewards/", "business_name": "LubeFx Plus", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "Buy 7 qualifying visits, get 1 free oil change via LubeFx Plus rewards.", "category": "Oil Change", "contact": "", "location": "Edmonton", "offer_details": "BUY 7 GET 1 FREE", "ad_title": "BUY 7 GET 1 FREE", "ad_text": "BUY 7 GET 1 FREE", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "store_name": "LubeFx Plus", "source_scope": "city_store", "extraction_method": "text", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "free", "coupon_code": null, "expiry_date": null, "promotion_title": "BUY 7 GET 1 FREE", "normalized_title": "buy 7 get 1 free", "applicable_cities": ["Edmonton"], "duplicate_group_id": "lubefx-008", "duplicate_group_total": 1, "source_image": ""}, {"website": "lubetown.com", "page_url": "https://lubetown.com/coupon/", "business_name": "Lube Town", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$15 off Full Synthetic Oil Change at Lube Town (code 15OFF).", "category": "Oil Change", "contact": "", "location": "Lube Town", "offer_details": "$15 OFF FULL SYNTHETIC OIL CHANGE", "ad_title": "$15 OFF FULL SYNTHETIC OIL CHANGE", "ad_text": "$15 OFF FULL SYNTHETIC OIL CHANGE\nOffer applies to the purchase of a full synthetic oil change package. Coupon must be presented at time of service. Can not be combined with other offers. No cash value. Limited time offer.\nLube Town\nCode: 15OFF\nExpires on: 6/30/2026", "new_or_updated": "new", "date_scraped": "2026-05-14", "city": "Calgary", "store_name": "Lube Town", "source_scope": "city_store", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$15", "coupon_code": "15OFF", "expiry_date": "2026-06-30", "promotion_title": "$15 OFF FULL SYNTHETIC OIL CHANGE", "normalized_title": "$15 off full synthetic oil change", "applicable_cities": ["Calgary"], "duplicate_group_id": "lt-001", "duplicate_group_total": 1}, {"website": "lubetown.com", "page_url": "https://lubetown.com/coupon/", "business_name": "Lube Town", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$10 off Synthetic Blend Oil Change at Lube Town (code 10OFF).", "category": "Oil Change", "contact": "", "location": "Lube Town", "offer_details": "$10 OFF SYNTHETIC BLEND OIL CHANGE", "ad_title": "$10 OFF SYNTHETIC BLEND OIL CHANGE", "ad_text": "$10 OFF SYNTHETIC BLEND OIL CHANGE\nOffer applies to the purchase of a synthetic blend oil change package. Coupon must be presented at time of service. Can not be combined with other offers. No cash value. Limited time offer.\nLube Town\nCode: 10OFF\nExpires on: 6/30/2026", "new_or_updated": "new", "date_scraped": "2026-05-14", "city": "Calgary", "store_name": "Lube Town", "source_scope": "city_store", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$10", "coupon_code": "10OFF", "expiry_date": "2026-06-30", "promotion_title": "$10 OFF SYNTHETIC BLEND OIL CHANGE", "normalized_title": "$10 off synthetic blend oil change", "applicable_cities": ["Calgary"], "duplicate_group_id": "lt-002", "duplicate_group_total": 1}, {"website": "lubetown.com", "page_url": "https://lubetown.com/coupon/", "business_name": "Lube Town", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$5 off Oil Change at Lube Town (code 5-OFF).", "category": "Oil Change", "contact": "", "location": "Lube Town", "offer_details": "$5 OFF OIL CHANGE", "ad_title": "$5 OFF OIL CHANGE", "ad_text": "$5 OFF OIL CHANGE\nOffer applies to the purchase of a conventional oil change package. Coupon must be presented at time of service. Can not be combined with other offers. No cash value. Limited time offer.\nLube Town\nCode: 5-OFF\nExpires on: 6/30/2026", "new_or_updated": "new", "date_scraped": "2026-05-14", "city": "Calgary", "store_name": "Lube Town", "source_scope": "city_store", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$5", "coupon_code": "5-OFF", "expiry_date": "2026-06-30", "promotion_title": "$5 OFF OIL CHANGE", "normalized_title": "$5 off oil change", "applicable_cities": ["Calgary"], "duplicate_group_id": "lt-003", "duplicate_group_total": 1}, {"website": "lubetown.com", "page_url": "https://lubetown.com/coupon/", "business_name": "Lube Town", "google_reviews": "NA", "service_name": "Fuel System Flush", "promo_description": "$20 off Major Fuel Service at Lube Town (code FUEL).", "category": "Fuel System Flush", "contact": "", "location": "Lube Town", "offer_details": "$20 OFF MAJOR FUEL SERVICE", "ad_title": "$20 OFF MAJOR FUEL SERVICE", "ad_text": "$20 OFF MAJOR FUEL SERVICE\nOffer applies to the purchase of a major fuel service. Coupon must be presented at time of service. Can not be combined with other offers. No cash value. Limited time offer.\nLube Town\nCode: FUEL\nExpires on: 6/30/2026", "new_or_updated": "new", "date_scraped": "2026-05-14", "city": "Calgary", "store_name": "Lube Town", "source_scope": "city_store", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$20", "coupon_code": "FUEL", "expiry_date": "2026-06-30", "promotion_title": "$20 OFF MAJOR FUEL SERVICE", "normalized_title": "$20 off major fuel service", "applicable_cities": ["Calgary"], "duplicate_group_id": "lt-004", "duplicate_group_total": 1}, {"website": "lubetown.com", "page_url": "https://lubetown.com/coupon/", "business_name": "Lube Town", "google_reviews": "NA", "service_name": "Other", "promo_description": "$10 off Each Additional Service Over $92.95 at Lube Town (code 10OFF).", "category": "Other", "contact": "", "location": "Lube Town", "offer_details": "$10 OFF EACH ADDITIONAL SERVICE OVER $92.95", "ad_title": "$10 OFF EACH ADDITIONAL SERVICE OVER $92.95", "ad_text": "$10 OFF EACH ADDITIONAL SERVICE OVER $92.95\nOffer applies to the purchase of multiple services at the same time. Save $10 on each additional service where the regular price of that service is over $92.95. Coupon must be presented at time of service. Can not be combined with other offers.\nLube Town\nCode: 10OFF\nExpires on: 6/30/2026", "new_or_updated": "new", "date_scraped": "2026-05-14", "city": "Calgary", "store_name": "Lube Town", "source_scope": "city_store", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$10", "coupon_code": "10OFF", "expiry_date": "2026-06-30", "promotion_title": "$10 OFF EACH ADDITIONAL SERVICE OVER $92.95", "normalized_title": "$10 off each additional service over $92.95", "applicable_cities": ["Calgary"], "duplicate_group_id": "lt-005", "duplicate_group_total": 1}, {"website": "lubetown.com", "page_url": "https://lubetown.com/coupon/", "business_name": "Lube Town", "google_reviews": "NA", "service_name": "Tire Sales", "promo_description": "$10 off Tire Change Over With Oil Change at Lube Town (code TIRE).", "category": "Tire Sales", "contact": "", "location": "Lube Town", "offer_details": "$10 OFF TIRE CHANGE OVER WITH OIL CHANGE*", "ad_title": "$10 OFF TIRE CHANGE OVER WITH OIL CHANGE*", "ad_text": "$10 OFF TIRE CHANGE OVER WITH OIL CHANGE*\n*Offer applies to the purchase of tire changeover on rim with oil change. Can not be combined with other offers.\nLube Town\nCode: TIRE\nExpires on: 6/30/2026", "new_or_updated": "new", "date_scraped": "2026-05-14", "city": "Calgary", "store_name": "Lube Town", "source_scope": "city_store", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$10", "coupon_code": "TIRE", "expiry_date": "2026-06-30", "promotion_title": "$10 OFF TIRE CHANGE OVER WITH OIL CHANGE*", "normalized_title": "$10 off tire change over with oil change*", "applicable_cities": ["Calgary"], "duplicate_group_id": "lt-006", "duplicate_group_total": 1}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/calgary/624-16th-avenue-n-w-t2m-0j7/offers?shopnum=9300", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Tire Sales", "promo_description": "Free off tire sales at Midas.", "category": "Tire Sales", "contact": "Calgary 624 16th Avenue NW", "location": "Calgary 624 16th Avenue NW", "offer_details": "Buy 3 Select Tires Get 1 Free", "ad_title": "Buy 3 Select Tires Get 1 Free", "ad_text": "Buy 3 Select Tires Get 1 Free\nPaid Installation Required.", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Calgary", "store_name": "Calgary 624 16th Avenue NW", "source_scope": "store", "extraction_method": "text", "confidence": "medium", "needs_review": false, "discount_value": "free", "coupon_code": "TI420NA", "expiry_date": null, "promotion_title": "Buy 3 Select Tires Get 1 Free", "normalized_title": "buy 3 select tires get 1 free", "applicable_cities": ["Calgary"], "duplicate_of_national": false, "duplicate_group_id": "d=free|c=TI420NA", "coupon_code_source": "enrichment_pass"}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/calgary/624-16th-avenue-n-w-t2m-0j7/offers?shopnum=9300", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Brake", "promo_description": "$199 off Brake at Midas.", "category": "Brake", "contact": "Calgary 624 16th Avenue NW", "location": "Calgary 624 16th Avenue NW", "offer_details": "$199 per Axle Brake Pads (Installed)", "ad_title": "$199 per Axle Brake Pads (Installed)", "ad_text": "$199 per Axle Brake Pads (Installed)\nExpires: 06/09/2026\nShow Details\nHide Details\n+\n-", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Calgary", "store_name": "Calgary 624 16th Avenue NW", "source_scope": "store", "extraction_method": "text", "confidence": "high", "needs_review": false, "discount_value": "$199", "coupon_code": "BD4762CA", "expiry_date": "06/09/2026", "promotion_title": "$199 per Axle Brake Pads (Installed)", "normalized_title": "$199 per axle brake pads (installed)", "applicable_cities": ["Calgary"], "duplicate_of_national": false, "duplicate_group_id": "d=usd:199|c=BD4762CA", "coupon_code_source": "enrichment_pass"}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/calgary/624-16th-avenue-n-w-t2m-0j7/offers?shopnum=9300", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Oil Change", "promo_description": "$69.99 off Oil Change at Midas.", "category": "Oil Change", "contact": "Calgary 624 16th Avenue NW", "location": "Calgary 624 16th Avenue NW", "offer_details": "$69.99 Conventional or $109.99 Full Synthetic Oil Change", "ad_title": "$69.99 Conventional or $109.99 Full Synthetic Oil Change", "ad_text": "$69.99 Conventional or $109.99 Full Synthetic Oil Change", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Calgary", "store_name": "Calgary 624 16th Avenue NW", "source_scope": "store", "extraction_method": "text", "confidence": "medium", "needs_review": false, "discount_value": "$69.99", "coupon_code": "OC3799CA", "expiry_date": null, "promotion_title": "$69.99 Conventional or $109.99 Full Synthetic Oil Change", "normalized_title": "$69.99 conventional or $109.99 full synthetic oil change", "applicable_cities": ["Calgary"], "duplicate_of_national": false, "duplicate_group_id": "d=usd:69.99|c=OC3799CA", "coupon_code_source": "enrichment_pass"}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/calgary/624-16th-avenue-n-w-t2m-0j7/offers?shopnum=9300", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Tire Sales", "promo_description": "$99 off tire sales at Midas.", "category": "Tire Sales", "contact": "Calgary 624 16th Avenue NW", "location": "Calgary 624 16th Avenue NW", "offer_details": "$99 Wheel Alignment with Set of 4 Tires Installation or Purchase over $499", "ad_title": "$99 Wheel Alignment with Set of 4 Tires Installation or Purchase over $499", "ad_text": "$99 Wheel Alignment with Set of 4 Tires Installation or Purchase over $499", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Calgary", "store_name": "Calgary 624 16th Avenue NW", "source_scope": "store", "extraction_method": "text", "confidence": "medium", "needs_review": false, "discount_value": "$99", "coupon_code": "TI5291US", "expiry_date": null, "promotion_title": "$99 Wheel Alignment with Set of 4 Tires Installation or Purchase over $499", "normalized_title": "$99 wheel alignment with set of 4 tires installation or purchase over $499", "applicable_cities": ["Calgary"], "duplicate_of_national": false, "duplicate_group_id": "d=usd:99|c=TI5291US", "coupon_code_source": "enrichment_pass"}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/calgary/624-16th-avenue-n-w-t2m-0j7/offers?shopnum=9300", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Other", "promo_description": "$10 off at Midas.", "category": "Other", "contact": "Calgary 624 16th Avenue NW", "location": "Calgary 624 16th Avenue NW", "offer_details": "$10 off at Midas.", "ad_title": "$10 Off $100,", "ad_text": "$10 Off $100,\n $20 Off $200,\n $30 Off $300", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Calgary", "store_name": "Calgary 624 16th Avenue NW", "source_scope": "store", "extraction_method": "text", "confidence": "medium", "needs_review": false, "discount_value": "$10", "coupon_code": "BD124NA", "expiry_date": null, "promotion_title": "$10 Off $100,", "normalized_title": "$10 off $100,", "applicable_cities": ["Calgary"], "duplicate_of_national": false, "duplicate_group_id": "d=usd:10|c=BD124NA", "coupon_code_source": "enrichment_pass"}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/edmonton/13038-97th-street-t5e-4c6/offers?shopnum=9351", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Tire Sales", "promo_description": "Free off tire sales at Midas.", "category": "Tire Sales", "contact": "Edmonton 13038 97th Street", "location": "Edmonton 13038 97th Street", "offer_details": "Buy 3 Get 1 Free on Select Tires", "ad_title": "Buy 3 Get 1 Free on Select Tires", "ad_text": "Buy 3 Get 1 Free on Select Tires\nExpires: 05/30/2026\nShow Details\nHide Details\n+\n-", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "Edmonton 13038 97th Street", "source_scope": "store", "extraction_method": "text", "confidence": "high", "needs_review": false, "discount_value": "free", "coupon_code": "TI3369US", "expiry_date": "05/30/2026", "promotion_title": "Buy 3 Get 1 Free on Select Tires", "normalized_title": "buy 3 get 1 free on select tires", "applicable_cities": ["Edmonton"], "duplicate_of_national": false, "duplicate_group_id": "d=free|c=TI3369US", "coupon_code_source": "enrichment_pass"}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/edmonton/13038-97th-street-t5e-4c6/offers?shopnum=9351", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Brake", "promo_description": "$499 off Brake at Midas.", "category": "Brake", "contact": "Edmonton 13038 97th Street", "location": "Edmonton 13038 97th Street", "offer_details": "Brake Pads with New Rotors Installed $499 Cars and $599 SUVs and Trucks", "ad_title": "Brake Pads with New Rotors Installed $499 Cars and $599 SUVs and Trucks", "ad_text": "Brake Pads with New Rotors Installed $499 Cars and $599 SUVs and Trucks", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "Edmonton 13038 97th Street", "source_scope": "store", "extraction_method": "text", "confidence": "medium", "needs_review": false, "discount_value": "$499", "coupon_code": "BK9593US", "expiry_date": null, "promotion_title": "Brake Pads with New Rotors Installed $499 Cars and $599 SUVs and Trucks", "normalized_title": "brake pads with new rotors installed $499 cars and $599 suvs and trucks", "applicable_cities": ["Edmonton"], "duplicate_of_national": false, "duplicate_group_id": "d=usd:499|c=BK9593US", "coupon_code_source": "enrichment_pass"}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/edmonton/13038-97th-street-t5e-4c6/offers?shopnum=9351", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Oil Change", "promo_description": "$59.99 off Oil Change at Midas.", "category": "Oil Change", "contact": "Edmonton 13038 97th Street", "location": "Edmonton 13038 97th Street", "offer_details": "$59.99 Standard, $79.99 Full Synthetic Oil Change with Tire Rotation", "ad_title": "$59.99 Standard, $79.99 Full Synthetic Oil Change with Tire Rotation", "ad_text": "$59.99 Standard, $79.99 Full Synthetic Oil Change with Tire Rotation\nPlus Disposal Fee.", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "Edmonton 13038 97th Street", "source_scope": "store", "extraction_method": "text", "confidence": "medium", "needs_review": false, "discount_value": "$59.99", "coupon_code": "OC3665CAN", "expiry_date": null, "promotion_title": "$59.99 Standard, $79.99 Full Synthetic Oil Change with Tire Rotation", "normalized_title": "$59.99 standard, $79.99 full synthetic oil change with tire rotation", "applicable_cities": ["Edmonton"], "duplicate_of_national": false, "duplicate_group_id": "d=usd:59.99|c=OC3665CAN", "coupon_code_source": "enrichment_pass"}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/edmonton/13038-97th-street-t5e-4c6/offers?shopnum=9351", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Other", "promo_description": "$10 off at Midas.", "category": "Other", "contact": "Edmonton 13038 97th Street", "location": "Edmonton 13038 97th Street", "offer_details": "$10 off at Midas.", "ad_title": "$10 Off $100,", "ad_text": "$10 Off $100,\n $20 Off $200,\n $30 Off $300", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "Edmonton 13038 97th Street", "source_scope": "store", "extraction_method": "text", "confidence": "medium", "needs_review": false, "discount_value": "$10", "coupon_code": "BD124NA", "expiry_date": null, "promotion_title": "$10 Off $100,", "normalized_title": "$10 off $100,", "applicable_cities": ["Edmonton"], "duplicate_of_national": false, "duplicate_group_id": "d=usd:10|c=BD124NA", "coupon_code_source": "enrichment_pass"}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/edmonton/7120-82nd-ave-nw-t6b-0g1/offers?shopnum=9360", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Other", "promo_description": "$20 off at Midas.", "category": "Other", "contact": "Edmonton 7120 82nd Ave NW", "location": "Edmonton 7120 82nd Ave NW", "offer_details": "$20 Off Wheel Alignment", "ad_title": "$20 Off Wheel Alignment", "ad_text": "$20 Off Wheel Alignment\nExpires: 06/09/2026\nShow Details\nHide Details\n+\n-", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "Edmonton 7120 82nd Ave NW", "source_scope": "store", "extraction_method": "text", "confidence": "high", "needs_review": false, "discount_value": "$20", "coupon_code": "SS723US", "expiry_date": "06/09/2026", "promotion_title": "$20 Off Wheel Alignment", "normalized_title": "$20 off wheel alignment", "applicable_cities": ["Edmonton"], "duplicate_of_national": false, "duplicate_group_id": "d=usd:20|c=SS723US", "coupon_code_source": "enrichment_pass"}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/grande-prairie/11211-100th-street-t8v-6p7/offers?shopnum=9426", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Brake", "promo_description": "Free off Brake at Midas.", "category": "Brake", "contact": "Grande Prairie 11211 100th Street", "location": "Grande Prairie 11211 100th Street", "offer_details": "Free Visual Brake Inspection With Purchase of Any Same Day Brake Service", "ad_title": "Free Visual Brake Inspection With Purchase of Any Same Day Brake Service", "ad_text": "Free Visual Brake Inspection With Purchase of Any Same Day Brake Service", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "Grande Prairie 11211 100th Street", "source_scope": "store", "extraction_method": "text", "confidence": "medium", "needs_review": false, "discount_value": "free", "coupon_code": "BK2000US", "expiry_date": null, "promotion_title": "Free Visual Brake Inspection With Purchase of Any Same Day Brake Service", "normalized_title": "free visual brake inspection with purchase of any same day brake service", "applicable_cities": ["Grande Prairie"], "duplicate_of_national": false, "duplicate_group_id": "d=free|c=BK2000US", "coupon_code_source": "enrichment_pass"}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/grande-prairie/11211-100th-street-t8v-6p7/offers?shopnum=9426", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Tire Sales", "promo_description": "$50 off tire sales at Midas.", "category": "Tire Sales", "contact": "Grande Prairie 11211 100th Street", "location": "Grande Prairie 11211 100th Street", "offer_details": "$50 Off Wheel Alignment with the Purchase of 4 Select Tires with Limited Lifetime Tire Guarantee™", "ad_title": "$50 Off Wheel Alignment with the Purchase of 4 Select Tires with Limited Lifetime Tire Guarantee™", "ad_text": "$50 Off Wheel Alignment with the Purchase of 4 Select Tires with Limited Lifetime Tire Guarantee™\nPaid Installation Required.", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "Grande Prairie 11211 100th Street", "source_scope": "store", "extraction_method": "text", "confidence": "medium", "needs_review": false, "discount_value": "$50", "coupon_code": "SS771CA", "expiry_date": null, "promotion_title": "$50 Off Wheel Alignment with the Purchase of 4 Select Tires with Limited Lifetime Tire Guarantee™", "normalized_title": "$50 off wheel alignment with the purchase of 4 select tires with limited lifetime tire guarantee™", "applicable_cities": ["Grande Prairie"], "duplicate_of_national": false, "duplicate_group_id": "d=usd:50|c=SS771CA", "coupon_code_source": "enrichment_pass"}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/grande-prairie/11211-100th-street-t8v-6p7/offers?shopnum=9426", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Other", "promo_description": "10% off at Midas.", "category": "Other", "contact": "Grande Prairie 11211 100th Street", "location": "Grande Prairie 11211 100th Street", "offer_details": "10% Off Any Services With Student ID", "ad_title": "10% Off Any Services With Student ID", "ad_text": "10% Off Any Services With Student ID\nExpires: 06/09/2026\nShow Details\nHide Details\n+\n-", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "Grande Prairie 11211 100th Street", "source_scope": "store", "extraction_method": "text", "confidence": "high", "needs_review": false, "discount_value": "10%", "coupon_code": "BD914US", "expiry_date": "06/09/2026", "promotion_title": "10% Off Any Services With Student ID", "normalized_title": "10% off any services with student id", "applicable_cities": ["Grande Prairie"], "duplicate_of_national": false, "duplicate_group_id": "d=pct:10|c=BD914US", "coupon_code_source": "enrichment_pass"}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/grande-prairie/11211-100th-street-t8v-6p7/offers?shopnum=9426", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Other", "promo_description": "10% off at Midas.", "category": "Other", "contact": "Grande Prairie 11211 100th Street", "location": "Grande Prairie 11211 100th Street", "offer_details": "10% Off Select Services with Military ID", "ad_title": "10% Off Select Services with Military ID", "ad_text": "10% Off Select Services with Military ID", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "Grande Prairie 11211 100th Street", "source_scope": "store", "extraction_method": "text", "confidence": "medium", "needs_review": false, "discount_value": "10%", "coupon_code": "BD914US", "expiry_date": null, "promotion_title": "10% Off Select Services with Military ID", "normalized_title": "10% off select services with military id", "applicable_cities": ["Grande Prairie"], "duplicate_of_national": false, "duplicate_group_id": "d=pct:10|c=BD914US", "coupon_code_source": "enrichment_pass"}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/grande-prairie/11211-100th-street-t8v-6p7/offers?shopnum=9426", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Other", "promo_description": "10% off at Midas.", "category": "Other", "contact": "Grande Prairie 11211 100th Street", "location": "Grande Prairie 11211 100th Street", "offer_details": "10% Off Senior Savings", "ad_title": "10% Off Senior Savings", "ad_text": "10% Off Senior Savings\nExpires: 06/09/2026\nShow Details\nHide Details\n+\n-", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "Grande Prairie 11211 100th Street", "source_scope": "store", "extraction_method": "text", "confidence": "high", "needs_review": false, "discount_value": "10%", "coupon_code": "BD914US", "expiry_date": "06/09/2026", "promotion_title": "10% Off Senior Savings", "normalized_title": "10% off senior savings", "applicable_cities": ["Grande Prairie"], "duplicate_of_national": false, "duplicate_group_id": "d=pct:10|c=BD914US", "coupon_code_source": "enrichment_pass"}, {"website": "midas.com", "page_url": "https://www.midas.com/store/ab/grande-prairie/11211-100th-street-t8v-6p7/offers?shopnum=9426", "business_name": "Midas", "google_reviews": "4.2 ⭐ | 1366 reviews", "service_name": "Other", "promo_description": "$15 off at Midas.", "category": "Other", "contact": "Grande Prairie 11211 100th Street", "location": "Grande Prairie 11211 100th Street", "offer_details": "$15 Off Air Conditioning Repair", "ad_title": "$15 Off Air Conditioning Repair", "ad_text": "$15 Off Air Conditioning Repair\nExpires: 06/09/2026\nShow Details\nHide Details\n+\n-", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "Grande Prairie 11211 100th Street", "source_scope": "store", "extraction_method": "text", "confidence": "high", "needs_review": false, "discount_value": "$15", "coupon_code": "AC207US", "expiry_date": "06/09/2026", "promotion_title": "$15 Off Air Conditioning Repair", "normalized_title": "$15 off air conditioning repair", "applicable_cities": ["Grande Prairie"], "duplicate_of_national": false, "duplicate_group_id": "d=usd:15|c=AC207US", "coupon_code_source": "enrichment_pass"}, {"website": "mobil1express.ca", "page_url": "https://www.mobil1calgary.com/mobileoffer/", "business_name": "Mobil 1 Lube Express", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$10 off Oil Change at Mobil 1 Lube Express.", "category": "Oil Change", "contact": "", "location": "Calgary", "offer_details": "$10.00 Off Any Oil Change", "ad_title": "$10.00 Off Any Oil Change", "ad_text": "$10.00 off Any Oil Change", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Calgary", "store_name": "Mobil 1 Lube Express", "source_scope": "city_store", "extraction_method": "text", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$10", "coupon_code": null, "expiry_date": null, "promotion_title": "$10.00 Off Any Oil Change", "normalized_title": "$10.00 off any oil change", "applicable_cities": ["Calgary"], "duplicate_group_id": "mobil1-001", "duplicate_group_total": 1, "source_image": ""}, {"website": "mobil1express.ca", "page_url": "https://mobil1express.ca/coupons/", "business_name": "Mobil 1 Lube Express", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$5 off Oil Change at Mobil 1 Lube Express.", "category": "Oil Change", "contact": "", "location": "Calgary", "offer_details": "$5 OFF Oil Change Package", "ad_title": "$5 OFF Oil Change Package", "ad_text": "$5 OFF\nMobil Lube Express\nMobil Special Conventional\nOil Change Package\nOne coupon per person, per visit. Cannot be combined with other offers or discounts. Valid at Mobil 1 Lube Express Sylvan Lake, Clearview or Red Deer locations only.", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Calgary", "store_name": "Mobil 1 Lube Express", "source_scope": "city_store", "extraction_method": "image_ocr", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$5", "coupon_code": null, "expiry_date": null, "promotion_title": "$5 OFF Oil Change Package", "normalized_title": "$5 off oil change package", "applicable_cities": ["Calgary", "Edmonton"], "duplicate_group_id": "mobil1-002", "duplicate_group_total": 2, "source_image": "https://mobil1express.ca/wp-content/uploads/2022/01/Coupon_2-02.jpg"}, {"website": "mobil1express.ca", "page_url": "https://mobil1express.ca/coupons/", "business_name": "Mobil 1 Lube Express", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$5 off Oil Change at Mobil 1 Lube Express.", "category": "Oil Change", "contact": "", "location": "Edmonton", "offer_details": "$5 OFF Oil Change Package", "ad_title": "$5 OFF Oil Change Package", "ad_text": "$5 OFF\nMobil Lube Express\nMobil Special Conventional\nOil Change Package\nOne coupon per person, per visit. Cannot be combined with other offers or discounts. Valid at Mobil 1 Lube Express Sylvan Lake, Clearview or Red Deer locations only.", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "store_name": "Mobil 1 Lube Express", "source_scope": "city_store", "extraction_method": "image_ocr", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$5", "coupon_code": null, "expiry_date": null, "promotion_title": "$5 OFF Oil Change Package", "normalized_title": "$5 off oil change package", "applicable_cities": ["Calgary", "Edmonton"], "duplicate_group_id": "mobil1-002", "duplicate_group_total": 2, "source_image": "https://mobil1express.ca/wp-content/uploads/2022/01/Coupon_2-02.jpg"}, {"website": "mobil1express.ca", "page_url": "https://mobil1express.ca/coupons/", "business_name": "Mobil 1 Lube Express", "google_reviews": "NA", "service_name": "Other", "promo_description": "$20 off at Mobil 1 Lube Express.", "category": "Other", "contact": "", "location": "Calgary", "offer_details": "$20 OFF Any Regular Priced Fluid Maintenance Service", "ad_title": "$20 OFF Any Regular Priced Fluid Maintenance Service", "ad_text": "$20 OFF\nMobil Lube Express\nAny Regular Priced Fluid Maintenance Service\nIncludes Transmission, Radiator, Differential and Transfer Case Services\nOne coupon per person, per visit. Cannot be combined with other offers or discounts. Valid at Mobil 1 Lube Express Sylvan Lake, Clearview or Red Deer locations only.", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Calgary", "store_name": "Mobil 1 Lube Express", "source_scope": "city_store", "extraction_method": "image_ocr", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$20", "coupon_code": null, "expiry_date": null, "promotion_title": "$20 OFF Any Regular Priced Fluid Maintenance Service", "normalized_title": "$20 off any regular priced fluid maintenance service", "applicable_cities": ["Calgary", "Edmonton"], "duplicate_group_id": "mobil1-003", "duplicate_group_total": 2, "source_image": "https://mobil1express.ca/wp-content/uploads/2022/01/Coupon_2-02.jpg"}, {"website": "mobil1express.ca", "page_url": "https://mobil1express.ca/coupons/", "business_name": "Mobil 1 Lube Express", "google_reviews": "NA", "service_name": "Other", "promo_description": "$20 off at Mobil 1 Lube Express.", "category": "Other", "contact": "", "location": "Edmonton", "offer_details": "$20 OFF Any Regular Priced Fluid Maintenance Service", "ad_title": "$20 OFF Any Regular Priced Fluid Maintenance Service", "ad_text": "$20 OFF\nMobil Lube Express\nAny Regular Priced Fluid Maintenance Service\nIncludes Transmission, Radiator, Differential and Transfer Case Services\nOne coupon per person, per visit. Cannot be combined with other offers or discounts. Valid at Mobil 1 Lube Express Sylvan Lake, Clearview or Red Deer locations only.", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "store_name": "Mobil 1 Lube Express", "source_scope": "city_store", "extraction_method": "image_ocr", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$20", "coupon_code": null, "expiry_date": null, "promotion_title": "$20 OFF Any Regular Priced Fluid Maintenance Service", "normalized_title": "$20 off any regular priced fluid maintenance service", "applicable_cities": ["Calgary", "Edmonton"], "duplicate_group_id": "mobil1-003", "duplicate_group_total": 2, "source_image": "https://mobil1express.ca/wp-content/uploads/2022/01/Coupon_2-02.jpg"}, {"website": "mobil1express.ca", "page_url": "https://mobil1express.ca/coupons/", "business_name": "Mobil 1 Lube Express", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$10 off Oil Change at Mobil 1 Lube Express.", "category": "Oil Change", "contact": "", "location": "Calgary", "offer_details": "$10 OFF Oil Change Package", "ad_title": "$10 OFF Oil Change Package", "ad_text": "$10 OFF\nMobil 1 Synthetic\nOil Change Package\nMobil Lube Express\nOne coupon per person, per visit. Cannot be combined with other offers or discounts. Valid at Mobil 1 Lube Express Sylvan Lake, Clearview or Red Deer locations only.", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Calgary", "store_name": "Mobil 1 Lube Express", "source_scope": "city_store", "extraction_method": "image_ocr", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$10", "coupon_code": null, "expiry_date": null, "promotion_title": "$10 OFF Oil Change Package", "normalized_title": "$10 off oil change package", "applicable_cities": ["Calgary", "Edmonton"], "duplicate_group_id": "mobil1-004", "duplicate_group_total": 2, "source_image": "https://mobil1express.ca/wp-content/uploads/2022/01/Coupon_1-01.jpg"}, {"website": "mobil1express.ca", "page_url": "https://mobil1express.ca/coupons/", "business_name": "Mobil 1 Lube Express", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$10 off Oil Change at Mobil 1 Lube Express.", "category": "Oil Change", "contact": "", "location": "Edmonton", "offer_details": "$10 OFF Oil Change Package", "ad_title": "$10 OFF Oil Change Package", "ad_text": "$10 OFF\nMobil 1 Synthetic\nOil Change Package\nMobil Lube Express\nOne coupon per person, per visit. Cannot be combined with other offers or discounts. Valid at Mobil 1 Lube Express Sylvan Lake, Clearview or Red Deer locations only.", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "store_name": "Mobil 1 Lube Express", "source_scope": "city_store", "extraction_method": "image_ocr", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$10", "coupon_code": null, "expiry_date": null, "promotion_title": "$10 OFF Oil Change Package", "normalized_title": "$10 off oil change package", "applicable_cities": ["Calgary", "Edmonton"], "duplicate_group_id": "mobil1-004", "duplicate_group_total": 2, "source_image": "https://mobil1express.ca/wp-content/uploads/2022/01/Coupon_1-01.jpg"}, {"website": "mobil1express.ca", "page_url": "https://mobil1express.ca/coupons/", "business_name": "Mobil 1 Lube Express", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$7 off Oil Change at Mobil 1 Lube Express.", "category": "Oil Change", "contact": "", "location": "Calgary", "offer_details": "$7 off Oil Change at Mobil 1 Lube Express.", "ad_title": "$7 OFF", "ad_text": "$7 OFF\nMobil Lube Express\nMobil Super Synthetic or High Mileage Oil Change\nIncludes up to 5 L of Mobil Super Synthetic or High Mileage Oil\nOne coupon per person, per visit. Cannot be combined with other offers or discounts. Valid at Mobil 1 Lube Express Sylvan Lake, Clearview or Red Deer locations only.", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Calgary", "store_name": "Mobil 1 Lube Express", "source_scope": "city_store", "extraction_method": "image_ocr", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$7", "coupon_code": null, "expiry_date": null, "promotion_title": "$7 OFF", "normalized_title": "$7 off", "applicable_cities": ["Calgary", "Edmonton"], "duplicate_group_id": "mobil1-005", "duplicate_group_total": 2, "source_image": "https://mobil1express.ca/wp-content/uploads/2022/01/Coupon_1-01.jpg"}, {"website": "mobil1express.ca", "page_url": "https://mobil1express.ca/coupons/", "business_name": "Mobil 1 Lube Express", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "$7 off Oil Change at Mobil 1 Lube Express.", "category": "Oil Change", "contact": "", "location": "Edmonton", "offer_details": "$7 off Oil Change at Mobil 1 Lube Express.", "ad_title": "$7 OFF", "ad_text": "$7 OFF\nMobil Lube Express\nMobil Super Synthetic or High Mileage Oil Change\nIncludes up to 5 L of Mobil Super Synthetic or High Mileage Oil\nOne coupon per person, per visit. Cannot be combined with other offers or discounts. Valid at Mobil 1 Lube Express Sylvan Lake, Clearview or Red Deer locations only.", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "store_name": "Mobil 1 Lube Express", "source_scope": "city_store", "extraction_method": "image_ocr", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$7", "coupon_code": null, "expiry_date": null, "promotion_title": "$7 OFF", "normalized_title": "$7 off", "applicable_cities": ["Calgary", "Edmonton"], "duplicate_group_id": "mobil1-005", "duplicate_group_total": 2, "source_image": "https://mobil1express.ca/wp-content/uploads/2022/01/Coupon_1-01.jpg"}, {"website": "mrlube.com", "page_url": "https://www.mrlube.com/en/Services/tire-rebates-and-financing", "business_name": "Mr. Lube + Tires", "google_reviews": "4.0 ⭐ | 593 reviews", "service_name": "Tire Sales", "promo_description": "Up to $100 mail-in rebate on Bridgestone tires at Mr. Lube.", "category": "Tire Sales", "contact": "National", "location": "National", "offer_details": "Up to $100 mail-in rebate on Bridgestone tires at Mr. Lube.", "ad_title": "BRIDGESTONE", "ad_text": "Tires\n\nMR.\nLUBE\nBRIDGESTONE\nCHELIN\nUNIR\nUP TO\n€0-$100\nYEAR\nFirestone\n\nIN REBATES\n?\nBuy Tires\nSelect Your\nStore\nA Brand\nSearch\nTires\nCheck Out\nRebates\nOrder Your\nTires", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Calgary", "store_name": "National", "source_scope": "national_shared", "extraction_method": "image_ocr", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$100", "coupon_code": null, "expiry_date": null, "promotion_title": "BRIDGESTONE", "normalized_title": "bridgestone", "applicable_cities": ["Calgary", "Edmonton"], "duplicate_group_id": "mrlube-001", "duplicate_group_total": 2, "source_image": "https://mlprod-ext-blob-01.mrlube.com/dotcom-production/img/services/web_ban_rebates_en.jpg"}, {"website": "mrlube.com", "page_url": "https://www.mrlube.com/en/Services/tire-rebates-and-financing", "business_name": "Mr. Lube + Tires", "google_reviews": "4.0 ⭐ | 593 reviews", "service_name": "Tire Sales", "promo_description": "Up to $100 mail-in rebate on Bridgestone tires at Mr. Lube.", "category": "Tire Sales", "contact": "National", "location": "National", "offer_details": "Up to $100 mail-in rebate on Bridgestone tires at Mr. Lube.", "ad_title": "BRIDGESTONE", "ad_text": "Tires\n\nMR.\nLUBE\nBRIDGESTONE\nCHELIN\nUNIR\nUP TO\n€0-$100\nYEAR\nFirestone\n\nIN REBATES\n?\nBuy Tires\nSelect Your\nStore\nA Brand\nSearch\nTires\nCheck Out\nRebates\nOrder Your\nTires", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "store_name": "National", "source_scope": "national_shared", "extraction_method": "image_ocr", "confidence": "medium", "needs_review": false, "needs_review_reason": "", "discount_value": "$100", "coupon_code": null, "expiry_date": null, "promotion_title": "BRIDGESTONE", "normalized_title": "bridgestone", "applicable_cities": ["Calgary", "Edmonton"], "duplicate_group_id": "mrlube-001", "duplicate_group_total": 2, "source_image": "https://mlprod-ext-blob-01.mrlube.com/dotcom-production/img/services/web_ban_rebates_en.jpg"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/battery-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Battery", "promo_description": "$50 off battery at Quick Lane (4× discounts for Ford Employees).", "category": "Battery", "contact": "National", "location": "National", "offer_details": "Ford Employees - Get four $50 instant service discounts to use or share.*", "ad_title": "Ford Employees - Get four $50 instant service discounts to use or share.*", "ad_text": "Ford Employees - Get four $50 instant service discounts to use or share.*\nExpires\n 09/07/2026\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$50", "coupon_code": null, "expiry_date": "09/07/2026", "promotion_title": "Ford Employees - Get four $50 instant service discounts to use or share.*", "normalized_title": "ford employees - get four $50 instant service discounts to use or share.*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-001", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/battery-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Battery", "promo_description": "$50 off battery at Quick Lane (4× discounts for Ford Employees).", "category": "Battery", "contact": "National", "location": "National", "offer_details": "Ford Employees - Get four $50 instant service discounts to use or share.*", "ad_title": "Ford Employees - Get four $50 instant service discounts to use or share.*", "ad_text": "Ford Employees - Get four $50 instant service discounts to use or share.*\nExpires\n 09/07/2026\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$50", "coupon_code": null, "expiry_date": "09/07/2026", "promotion_title": "Ford Employees - Get four $50 instant service discounts to use or share.*", "normalized_title": "ford employees - get four $50 instant service discounts to use or share.*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-001", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/battery-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Battery", "promo_description": "Battery from $149.95 MSRP at Quick Lane.", "category": "Battery", "contact": "National", "location": "National", "offer_details": "Motorcraft® Tested Tough® PLUS Batteries, $149.95 MSRP, or redeem 30,000 Ford Rewards Points.*", "ad_title": "Motorcraft® Tested Tough® PLUS Batteries, $149.95 MSRP, or redeem 30,000 Ford Rewards Points.*", "ad_text": "Motorcraft® Tested Tough® PLUS Batteries, $149.95 MSRP, or redeem 30,000 Ford Rewards Points.*\nExpires\n 07/06/2026\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$149.95", "coupon_code": null, "expiry_date": "07/06/2026", "promotion_title": "Motorcraft® Tested Tough® PLUS Batteries, $149.95 MSRP, or redeem 30,000 Ford Rewards Points.*", "normalized_title": "motorcraft® tested tough® plus batteries, $149.95 msrp, or redeem 30,000 ford rewards points.*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-002", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/battery-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Battery", "promo_description": "Battery from $149.95 MSRP at Quick Lane.", "category": "Battery", "contact": "National", "location": "National", "offer_details": "Motorcraft® Tested Tough® PLUS Batteries, $149.95 MSRP, or redeem 30,000 Ford Rewards Points.*", "ad_title": "Motorcraft® Tested Tough® PLUS Batteries, $149.95 MSRP, or redeem 30,000 Ford Rewards Points.*", "ad_text": "Motorcraft® Tested Tough® PLUS Batteries, $149.95 MSRP, or redeem 30,000 Ford Rewards Points.*\nExpires\n 07/06/2026\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$149.95", "coupon_code": null, "expiry_date": "07/06/2026", "promotion_title": "Motorcraft® Tested Tough® PLUS Batteries, $149.95 MSRP, or redeem 30,000 Ford Rewards Points.*", "normalized_title": "motorcraft® tested tough® plus batteries, $149.95 msrp, or redeem 30,000 ford rewards points.*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-002", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/battery-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Battery", "promo_description": "Battery starting at $199.95 MSRP at Quick Lane.", "category": "Battery", "contact": "National", "location": "National", "offer_details": "Motorcraft® Tested Tough® MAX Batteries, starting at $199.95 MSRP, or redeem 40,000 Ford Rewards Points.*", "ad_title": "Motorcraft® Tested Tough® MAX Batteries, starting at $199.95 MSRP, or redeem 40,000 Ford Rewards Points.*", "ad_text": "Motorcraft® Tested Tough® MAX Batteries, starting at $199.95 MSRP, or redeem 40,000 Ford Rewards Points.*\nExpires\n 07/06/2026\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$199.95", "coupon_code": null, "expiry_date": "07/06/2026", "promotion_title": "Motorcraft® Tested Tough® MAX Batteries, starting at $199.95 MSRP, or redeem 40,000 Ford Rewards Points.*", "normalized_title": "motorcraft® tested tough® max batteries, starting at $199.95 msrp, or redeem 40,000 ford rewards points.*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-003", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/battery-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Battery", "promo_description": "Battery starting at $199.95 MSRP at Quick Lane.", "category": "Battery", "contact": "National", "location": "National", "offer_details": "Motorcraft® Tested Tough® MAX Batteries, starting at $199.95 MSRP, or redeem 40,000 Ford Rewards Points.*", "ad_title": "Motorcraft® Tested Tough® MAX Batteries, starting at $199.95 MSRP, or redeem 40,000 Ford Rewards Points.*", "ad_text": "Motorcraft® Tested Tough® MAX Batteries, starting at $199.95 MSRP, or redeem 40,000 Ford Rewards Points.*\nExpires\n 07/06/2026\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$199.95", "coupon_code": null, "expiry_date": "07/06/2026", "promotion_title": "Motorcraft® Tested Tough® MAX Batteries, starting at $199.95 MSRP, or redeem 40,000 Ford Rewards Points.*", "normalized_title": "motorcraft® tested tough® max batteries, starting at $199.95 msrp, or redeem 40,000 ford rewards points.*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-003", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/battery-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Battery", "promo_description": "Free battery check at Quick Lane.", "category": "Battery", "contact": "National", "location": "National", "offer_details": "Have your battery tested at no charge.*", "ad_title": "Have your battery tested at no charge.*", "ad_text": "Have your battery tested at no charge.*\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "low", "needs_review": false, "needs_review_reason": "", "discount_value": null, "coupon_code": null, "expiry_date": null, "promotion_title": "Have your battery tested at no charge.*", "normalized_title": "have your battery tested at no charge.*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-004", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/battery-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Battery", "promo_description": "Free battery check at Quick Lane.", "category": "Battery", "contact": "National", "location": "National", "offer_details": "Have your battery tested at no charge.*", "ad_title": "Have your battery tested at no charge.*", "ad_text": "Have your battery tested at no charge.*\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "low", "needs_review": false, "needs_review_reason": "", "discount_value": null, "coupon_code": null, "expiry_date": null, "promotion_title": "Have your battery tested at no charge.*", "normalized_title": "have your battery tested at no charge.*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-004", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/battery-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Battery", "promo_description": "Battery at Quick Lane.", "category": "Battery", "contact": "National", "location": "National", "offer_details": "Earn and redeem Points on service with Ford Rewards.*", "ad_title": "Earn and redeem Points on service with Ford Rewards.*", "ad_text": "Earn and redeem Points on service with Ford Rewards.*\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "low", "needs_review": false, "needs_review_reason": "", "discount_value": null, "coupon_code": null, "expiry_date": null, "promotion_title": "Earn and redeem Points on service with Ford Rewards.*", "normalized_title": "earn and redeem points on service with ford rewards.*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-005", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/battery-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Battery", "promo_description": "Battery at Quick Lane.", "category": "Battery", "contact": "National", "location": "National", "offer_details": "Earn and redeem Points on service with Ford Rewards.*", "ad_title": "Earn and redeem Points on service with Ford Rewards.*", "ad_text": "Earn and redeem Points on service with Ford Rewards.*\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "low", "needs_review": false, "needs_review_reason": "", "discount_value": null, "coupon_code": null, "expiry_date": null, "promotion_title": "Earn and redeem Points on service with Ford Rewards.*", "normalized_title": "earn and redeem points on service with ford rewards.*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-005", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/oil-change-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "Oil Change at Quick Lane.", "category": "Oil Change", "contact": "National", "location": "National", "offer_details": "The Works® Package Synthetic Blend Oil Change and More*", "ad_title": "The Works® Package Synthetic Blend Oil Change and More*", "ad_text": "The Works® Package Synthetic Blend Oil Change and More*\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "low", "needs_review": false, "needs_review_reason": "", "discount_value": null, "coupon_code": null, "expiry_date": null, "promotion_title": "The Works® Package Synthetic Blend Oil Change and More*", "normalized_title": "the works® package synthetic blend oil change and more*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-007", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/oil-change-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "Oil Change at Quick Lane.", "category": "Oil Change", "contact": "National", "location": "National", "offer_details": "The Works® Package Synthetic Blend Oil Change and More*", "ad_title": "The Works® Package Synthetic Blend Oil Change and More*", "ad_text": "The Works® Package Synthetic Blend Oil Change and More*\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "low", "needs_review": false, "needs_review_reason": "", "discount_value": null, "coupon_code": null, "expiry_date": null, "promotion_title": "The Works® Package Synthetic Blend Oil Change and More*", "normalized_title": "the works® package synthetic blend oil change and more*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-007", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/oil-change-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "Oil change at Quick Lane.", "category": "Oil Change", "contact": "National", "location": "National", "offer_details": "Motorcraft® Warranty: Two years. Unlimited mileage. Includes labor.*", "ad_title": "Motorcraft® Warranty: Two years. Unlimited mileage. Includes labor.*", "ad_text": "Motorcraft® Warranty: Two years. Unlimited mileage. Includes labor.*\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "low", "needs_review": false, "needs_review_reason": "", "discount_value": null, "coupon_code": null, "expiry_date": null, "promotion_title": "Motorcraft® Warranty: Two years. Unlimited mileage. Includes labor.*", "normalized_title": "motorcraft® warranty: two years. unlimited mileage. includes labor.*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-009", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/oil-change-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Oil Change", "promo_description": "Oil change at Quick Lane.", "category": "Oil Change", "contact": "National", "location": "National", "offer_details": "Motorcraft® Warranty: Two years. Unlimited mileage. Includes labor.*", "ad_title": "Motorcraft® Warranty: Two years. Unlimited mileage. Includes labor.*", "ad_text": "Motorcraft® Warranty: Two years. Unlimited mileage. Includes labor.*\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "low", "needs_review": false, "needs_review_reason": "", "discount_value": null, "coupon_code": null, "expiry_date": null, "promotion_title": "Motorcraft® Warranty: Two years. Unlimited mileage. Includes labor.*", "normalized_title": "motorcraft® warranty: two years. unlimited mileage. includes labor.*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-009", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/brake-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Brake", "promo_description": "Brake at Quick Lane.", "category": "Brake", "contact": "National", "location": "National", "offer_details": "Lifetime Brake Pad Guarantee*", "ad_title": "Lifetime Brake Pad Guarantee*", "ad_text": "Lifetime Brake Pad Guarantee*\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "low", "needs_review": false, "needs_review_reason": "", "discount_value": null, "coupon_code": null, "expiry_date": null, "promotion_title": "Lifetime Brake Pad Guarantee*", "normalized_title": "lifetime brake pad guarantee*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-011", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/brake-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Brake", "promo_description": "Brake at Quick Lane.", "category": "Brake", "contact": "National", "location": "National", "offer_details": "Lifetime Brake Pad Guarantee*", "ad_title": "Lifetime Brake Pad Guarantee*", "ad_text": "Lifetime Brake Pad Guarantee*\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "low", "needs_review": false, "needs_review_reason": "", "discount_value": null, "coupon_code": null, "expiry_date": null, "promotion_title": "Lifetime Brake Pad Guarantee*", "normalized_title": "lifetime brake pad guarantee*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-011", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/brake-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Brake", "promo_description": "Free brake check at Quick Lane.", "category": "Brake", "contact": "National", "location": "National", "offer_details": "Complimentary Brake Inspection*", "ad_title": "Complimentary Brake Inspection*", "ad_text": "Complimentary Brake Inspection*\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "low", "needs_review": false, "needs_review_reason": "", "discount_value": null, "coupon_code": null, "expiry_date": null, "promotion_title": "Complimentary Brake Inspection*", "normalized_title": "complimentary brake inspection*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-012", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/brake-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Brake", "promo_description": "Free brake check at Quick Lane.", "category": "Brake", "contact": "National", "location": "National", "offer_details": "Complimentary Brake Inspection*", "ad_title": "Complimentary Brake Inspection*", "ad_text": "Complimentary Brake Inspection*\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "low", "needs_review": false, "needs_review_reason": "", "discount_value": null, "coupon_code": null, "expiry_date": null, "promotion_title": "Complimentary Brake Inspection*", "normalized_title": "complimentary brake inspection*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-012", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/tire-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Tire Sales", "promo_description": "$130 rebate on tire sales at Quick Lane.", "category": "Tire Sales", "contact": "National", "location": "National", "offer_details": "We'll beat your best price on a set of four tires,* plus get a $130 rebate.**", "ad_title": "We'll beat your best price on a set of four tires,* plus get a $130 rebate.**", "ad_text": "We'll beat your best price on a set of four tires,* plus get a $130 rebate.**\nExpires\n 07/06/2026\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$130", "coupon_code": null, "expiry_date": "07/06/2026", "promotion_title": "We'll beat your best price on a set of four tires,* plus get a $130 rebate.**", "normalized_title": "we'll beat your best price on a set of four tires,* plus get a $130 rebate.**", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-014", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/tire-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Tire Sales", "promo_description": "$130 rebate on tire sales at Quick Lane.", "category": "Tire Sales", "contact": "National", "location": "National", "offer_details": "We'll beat your best price on a set of four tires,* plus get a $130 rebate.**", "ad_title": "We'll beat your best price on a set of four tires,* plus get a $130 rebate.**", "ad_text": "We'll beat your best price on a set of four tires,* plus get a $130 rebate.**\nExpires\n 07/06/2026\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$130", "coupon_code": null, "expiry_date": "07/06/2026", "promotion_title": "We'll beat your best price on a set of four tires,* plus get a $130 rebate.**", "normalized_title": "we'll beat your best price on a set of four tires,* plus get a $130 rebate.**", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-014", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/tire-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Tire Sales", "promo_description": "$80 off tire sales at Quick Lane.", "category": "Tire Sales", "contact": "National", "location": "National", "offer_details": "$80 off tire sales at Quick Lane.", "ad_title": "Military and First Responders - Receive an $80 instant discount with the purchase and installation of four select tires.*", "ad_text": "Military and First Responders - Receive an $80 instant discount with the purchase and installation of four select tires.*\nExpires\n 12/31/2026\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$80", "coupon_code": null, "expiry_date": "12/31/2026", "promotion_title": "Military and First Responders - Receive an $80 instant discount with the purchase and installation of four select tires.*", "normalized_title": "military and first responders - receive an $80 instant discount with the purchase and installation of four select tires.*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-016", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/tire-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Tire Sales", "promo_description": "$80 off tire sales at Quick Lane.", "category": "Tire Sales", "contact": "National", "location": "National", "offer_details": "$80 off tire sales at Quick Lane.", "ad_title": "Military and First Responders - Receive an $80 instant discount with the purchase and installation of four select tires.*", "ad_text": "Military and First Responders - Receive an $80 instant discount with the purchase and installation of four select tires.*\nExpires\n 12/31/2026\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "high", "needs_review": false, "needs_review_reason": "", "discount_value": "$80", "coupon_code": null, "expiry_date": "12/31/2026", "promotion_title": "Military and First Responders - Receive an $80 instant discount with the purchase and installation of four select tires.*", "normalized_title": "military and first responders - receive an $80 instant discount with the purchase and installation of four select tires.*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-016", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/tire-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Tire Sales", "promo_description": "Tire sales at Quick Lane.", "category": "Tire Sales", "contact": "National", "location": "National", "offer_details": "Low Price Tire Guarantee*", "ad_title": "Low Price Tire Guarantee*", "ad_text": "Low Price Tire Guarantee*\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Edmonton", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "low", "needs_review": false, "needs_review_reason": "", "discount_value": null, "coupon_code": null, "expiry_date": null, "promotion_title": "Low Price Tire Guarantee*", "normalized_title": "low price tire guarantee*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-017", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "quicklane.com", "page_url": "https://www.quicklane.com/en-us/savings/coupons-offers-rebates/tire-coupons/", "business_name": "Quick Lane Tire & Auto Center", "google_reviews": "NA", "service_name": "Tire Sales", "promo_description": "Tire sales at Quick Lane.", "category": "Tire Sales", "contact": "National", "location": "National", "offer_details": "Low Price Tire Guarantee*", "ad_title": "Low Price Tire Guarantee*", "ad_text": "Low Price Tire Guarantee*\nView Offer", "new_or_updated": "new", "date_scraped": "2026-05-13", "city": "Grande Prairie", "store_name": "National", "source_scope": "national_service", "extraction_method": "text", "confidence": "low", "needs_review": false, "needs_review_reason": "", "discount_value": null, "coupon_code": null, "expiry_date": null, "promotion_title": "Low Price Tire Guarantee*", "normalized_title": "low price tire guarantee*", "applicable_cities": ["Edmonton", "Grande Prairie"], "duplicate_group_id": "qlane-017", "duplicate_group_total": 2, "region_applicability": "assumed_canada_ok"}, {"website": "valvolineedmonton.ca", "page_url": "http://valvolineedmonton.ca/", "business_name": "Valvoline Express Care", "google_reviews": "4.9 ⭐ | 1104 reviews", "service_name": "Oil Change", "promo_description": "Get 25% off your oil change or tire change with our express service. No appointment needed and enjoy award-winning customer service. | Discount: 25% | Expires: 2026-06-21", "category": "Oil Change", "contact": "NA", "location": "9516 51 Ave NW, Edmonton, AB T6E 5A6, Canada", "offer_details": "Get 25% off your oil change or tire change with our express service. No appointment needed and enjoy award-winning customer service. | Discount: 25% | Expires: 2026-06-21", "ad_title": "oil change", "ad_text": "9516 51 Ave NW, Edmonton, AB | 780.503.3093\nDUE FOR AN\nEXPRESS\nOIL CHANGE? CAREY\nNO APPOINTMENT NEEDED.\nOPEN 7 DAYS.\nAWARD WINNING CUSTOMER SERVICE ✶✶✶✶✶\nValv\n25% OFF\nOil Change OR Tire Change\n15 minute drive-thru service\nVI\nExpires June 21, 2026\nValvoline\nFLIP FOR\nMORE SAVINGS", "new_or_updated": "new", "date_scraped": "2026-05-25", "city": "Edmonton", "applicable_cities": ["Edmonton"]}];
+const PALETTE = ["#6366f1", "#d97706", "#059669", "#dc2626", "#2563eb", "#7c3aed", "#db2777", "#0d9488", "#ea580c", "#65a30d", "#0891b2"];
+
+// ─── State ──────────────────────────────────────────────────────────────────
+let _chartSel = null;   // competitor name clicked on a chart bar
+let _sortState = { promos: { key: null, dir: 1 }, ads: { key: null, dir: 1 } };
+
+// ─── Color map ──────────────────────────────────────────────────────────────
+const _cm = {};
+let _ci = 0;
+function colorFor(n) { if (!_cm[n]) _cm[n] = PALETTE[_ci++ % PALETTE.length]; return _cm[n]; }
+[...new Set([...PROMOS.map(p=>p.business_name),...ADS.map(a=>a.business_name)])].forEach(colorFor);
+
+// ─── Filters ────────────────────────────────────────────────────────────────
+function getCity() { return document.getElementById('cityFilter').value; }
+function getComp() { return document.getElementById('compFilter').value; }
+
+function filteredPromos() {
+  const city = getCity(), comp = getComp() || _chartSel;
+  return PROMOS.filter(p =>
+    (!city || (p.city||'').trim() === city) &&
+    (!comp || p.business_name === comp)
+  );
+}
+function filteredAds() {
+  const comp = getComp() || _chartSel;
+  return ADS.filter(a => !comp || a.business_name === comp);
+}
+function allPromos() { // for charts (city-filtered only, not comp)
+  const city = getCity();
+  return PROMOS.filter(p => !city || (p.city||'').trim() === city);
+}
+
+// ─── Dropdown population ────────────────────────────────────────────────────
+function populateCompDropdown() {
+  const all = [...new Set([...PROMOS.map(p=>p.business_name),...ADS.map(a=>a.business_name)])].sort();
+  const sel = document.getElementById('compFilter');
+  all.forEach(n => { const o=document.createElement('option'); o.value=o.textContent=n; sel.appendChild(o); });
+}
+
+// ─── Chart selection ────────────────────────────────────────────────────────
+function selectComp(name) {
+  _chartSel = _chartSel === name ? null : name;
+  const chip = document.getElementById('activeChip');
+  if (_chartSel) {
+    document.getElementById('chipLabel').textContent = _chartSel;
+    chip.style.display = 'inline-flex';
+    if (window.Motion) Motion.animate('#activeChip', { opacity:[0,1], scale:[0.9,1] }, { duration:0.2 });
+  } else { chip.style.display = 'none'; }
+  renderAll();
+}
+function clearChartSel() {
+  _chartSel = null;
+  document.getElementById('activeChip').style.display='none';
+  renderAll();
+}
+function applyFilters() {
+  _chartSel = null;
+  document.getElementById('activeChip').style.display='none';
+  renderAll();
+}
+
+// ─── Chart helpers ──────────────────────────────────────────────────────────
+const _charts = {};
+function mkChart(id, type, data, extra={}) {
+  if (_charts[id]) _charts[id].destroy();
+  _charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
+    type, data,
+    options: {
+      responsive:true,
+      animation:{ duration:500, easing:'easeInOutCubic' },
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend: extra.hideLegend ? {display:false} : {
+          position: extra.legendPos||'bottom',
+          labels:{ color:'#64748b', font:{size:11,family:'Inter'}, boxWidth:10, padding:14, usePointStyle:true }
+        },
+        tooltip:{ enabled:false, external: makeTooltip },
+      },
+      scales: extra.noScales ? {x:{display:false},y:{display:false}} : {
+        x:{ ticks:{color:'#94a3b8',font:{size:11,family:'Inter'}}, grid:{color:'#f1f5f9'}, border:{display:false} },
+        y:{ ticks:{color:'#94a3b8',font:{size:11,family:'Inter'},maxTicksLimit:6}, grid:{color:'#f1f5f9'}, border:{display:false} },
+        ...(extra.stacked ? {x:{stacked:true},y:{stacked:true}} : {}),
+      },
+      onHover:(e,els) => { e.native.target.style.cursor = els.length?'pointer':'default'; },
+      onClick:(e,els,ch) => {
+        if (!els.length) return;
+        const label = ch.data.labels[els[0].index];
+        if (label) selectComp(label);
+      },
+      ...( extra.indexAxis ? {indexAxis:extra.indexAxis} : {} ),
+    }
+  });
+}
+
+// ─── External tooltip ───────────────────────────────────────────────────────
+function makeTooltip(context) {
+  const el = document.getElementById('chartTooltip');
+  if (context.tooltip.opacity === 0) { el.style.opacity='0'; return; }
+  const t = context.tooltip;
+  let html = `<div class="tt-title">${t.title[0]||''}</div>`;
+  t.dataPoints.forEach(dp => {
+    html += `<div class="tt-row">
+      <span style="width:8px;height:8px;border-radius:50%;background:${dp.dataset.borderColor};display:inline-block"></span>
+      ${dp.dataset.label||''}
+      <span class="tt-val">${dp.formattedValue}</span>
+    </div>`;
+  });
+  el.innerHTML = html;
+  const rect = context.chart.canvas.getBoundingClientRect();
+  el.style.left = (rect.left + t.caretX + 12) + 'px';
+  el.style.top  = (rect.top  + t.caretY - 20) + 'px';
+  el.style.opacity = '1';
+}
+document.addEventListener('mouseleave', () => {
+  const el = document.getElementById('chartTooltip');
+  if (el) el.style.opacity = '0';
+}, true);
+
+// ─── Bar colors (dim unselected when something is selected) ─────────────────
+function barColors(labels, alpha='cc') {
+  return labels.map(l => {
+    const base = colorFor(l);
+    const dim  = !_chartSel || l === _chartSel;
+    return base + (dim ? alpha : '30');
+  });
+}
+
+// ─── Count-up animation ──────────────────────────────────────────────────────
+function countUp(el, target, suffix='') {
+  const start = performance.now(), dur = 700;
+  const from = parseInt(el.textContent) || 0;
+  function tick(now) {
+    const p = Math.min((now-start)/dur, 1);
+    const ease = 1-Math.pow(1-p,3);
+    el.textContent = Math.round(from + (target-from)*ease) + suffix;
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// ─── KPIs ────────────────────────────────────────────────────────────────────
+function renderKPIs() {
+  const p = filteredPromos(), a = filteredAds();
+  const wDisc = p.filter(x=>x.discount_value&&x.discount_value.trim()).length;
+  const pct = p.length ? Math.round(wDisc/p.length*100) : 0;
+  const comps = new Set([...p.map(x=>x.business_name),...a.map(x=>x.business_name)]).size;
+  const kpis = [
+    {val:p.length, lbl:'Promotions',    sub:'active deals',       color:'#6366f1'},
+    {val:a.length, lbl:'Google Ads',    sub:'text creatives',     color:'#059669'},
+    {val:comps,    lbl:'Competitors',   sub:'tracked',            color:'#d97706'},
+    {val:3,        lbl:'Cities',        sub:'Edmonton · Calgary · GP', color:'#2563eb'},
+    {val:wDisc,    lbl:'w/ Discount',   sub:pct+'% of promos',    color:'#db2777'},
+  ];
+  const row = document.getElementById('kpiRow');
+  row.innerHTML = kpis.map((k,i)=>`
+    <div class="kpi" style="--kpi-color:${k.color}">
+      <div class="val" id="kpi${i}">0</div>
+      <div class="lbl">${k.lbl}</div>
+      <div class="sub">${k.sub}</div>
+    </div>`).join('');
+  kpis.forEach((k,i) => countUp(document.getElementById('kpi'+i), k.val));
+}
+
+// ─── Spotlight ───────────────────────────────────────────────────────────────
+function discScore(val) {
+  if (!val) return -1;
+  const v = String(val).toLowerCase().trim();
+  if (v==='free'||v.startsWith('free')) return 9999;
+  if (v.includes('%')) return (parseFloat(v)||0) * 8;
+  return parseFloat(v.replace(/[^0-9.]/g,''))||0;
+}
+function renderSpotlight() {
+  const promos = filteredPromos();
+  const top3 = [...promos].sort((a,b)=>discScore(b.discount_value)-discScore(a.discount_value)).filter(p=>p.discount_value&&p.discount_value.trim()).slice(0,3);
+  document.getElementById('spotlightCount').textContent = top3.length + ' shown';
+  document.getElementById('spotlightRow').innerHTML = top3.map((p,i)=>`
+    <div class="deal-card">
+      <div class="deal-rank">${i+1}</div>
+      <div class="disc-badge" style="color:${colorFor(p.business_name)}">${p.discount_value}</div>
+      <div class="comp"><span class="comp-dot" style="background:${colorFor(p.business_name)}"></span>${p.business_name}</div>
+      <div class="svc">${p.service_name||p.category||''}</div>
+      <div class="desc">${(p.offer_details||p.promo_description||'').slice(0,100)}${(p.offer_details||p.promo_description||'').length>100?'…':''}</div>
+    </div>`).join('') || '<p class="empty">No discounts in current filter.</p>';
+}
+
+// ─── Charts ──────────────────────────────────────────────────────────────────
+function renderCharts() {
+  const prAll = allPromos();
+  const countBy = (arr,k) => { const m={}; arr.forEach(r=>{ const v=r[k]||'?'; m[v]=(m[v]||0)+1; }); return m; };
+  const sorted = obj => Object.entries(obj).sort((a,b)=>b[1]-a[1]);
+
+  // Promos per competitor
+  const pe = sorted(countBy(prAll,'business_name'));
+  mkChart('promosBar','bar',{
+    labels: pe.map(e=>e[0]),
+    datasets:[{ label:'Promotions', data:pe.map(e=>e[1]),
+      backgroundColor:barColors(pe.map(e=>e[0]),'bb'),
+      borderColor:pe.map(e=>colorFor(e[0])),
+      borderWidth:1.5, borderRadius:5, borderSkipped:false }]
+  },{ indexAxis:'y', hideLegend:true });
+
+  // Ads per competitor
+  const ae = sorted(countBy(ADS,'business_name'));
+  mkChart('adsBar','bar',{
+    labels: ae.map(e=>e[0]),
+    datasets:[{ label:'Ads', data:ae.map(e=>e[1]),
+      backgroundColor:barColors(ae.map(e=>e[0]),'bb'),
+      borderColor:ae.map(e=>colorFor(e[0])),
+      borderWidth:1.5, borderRadius:5, borderSkipped:false }]
+  },{ indexAxis:'y', hideLegend:true });
+
+  // Category donut
+  const ce = sorted(countBy(prAll,'category'));
+  mkChart('catDonut','doughnut',{
+    labels: ce.map(e=>e[0]),
+    datasets:[{ data:ce.map(e=>e[1]),
+      backgroundColor:ce.map((_,i)=>PALETTE[i%PALETTE.length]+'cc'),
+      borderColor:ce.map((_,i)=>PALETTE[i%PALETTE.length]),
+      borderWidth:1.5, hoverOffset:6 }]
+  },{ noScales:true, legendPos:'bottom' });
+
+  // City donut
+  const cityMap={};
+  prAll.forEach(p=>{ const c=(p.city||'Unknown').trim(); cityMap[c]=(cityMap[c]||0)+1; });
+  const cityPalette=['#6366f1','#d97706','#059669'];
+  const cityEntries = Object.entries(cityMap).sort((a,b)=>b[1]-a[1]);
+  mkChart('cityDonut','doughnut',{
+    labels: cityEntries.map(e=>e[0]),
+    datasets:[{ data:cityEntries.map(e=>e[1]),
+      backgroundColor:cityPalette.map(c=>c+'cc'),
+      borderColor:cityPalette,
+      borderWidth:1.5, hoverOffset:6 }]
+  },{ noScales:true, legendPos:'bottom' });
+
+  // Discount buckets
+  const buckets={};
+  prAll.forEach(p=>{ const v=(p.discount_value||'').toLowerCase().trim();
+    let b;
+    if (!v) return;
+    if (v==='free'||v.startsWith('free')) b='Free';
+    else if (v.includes('%')) b='%';
+    else { const n=parseFloat(v.replace(/[^0-9.]/g,''));
+      if(isNaN(n)) b='Other';
+      else if(n<=10) b='≤$10';
+      else if(n<=25) b='$11–25';
+      else if(n<=50) b='$26–50';
+      else b='$50+';
+    }
+    buckets[b]=(buckets[b]||0)+1;
+  });
+  const bOrder=['Free','%','≤$10','$11–25','$26–50','$50+'];
+  const bCols=['#059669','#6366f1','#d97706','#ea580c','#db2777','#dc2626'];
+  mkChart('discBar','bar',{
+    labels:bOrder,
+    datasets:[{ label:'Promos', data:bOrder.map(k=>buckets[k]||0),
+      backgroundColor:bCols.map(c=>c+'bb'),
+      borderColor:bCols, borderWidth:1.5, borderRadius:5, borderSkipped:false }]
+  },{ hideLegend:true });
+
+  // Stacked ads
+  const discC={}, noC={};
+  ADS.forEach(a=>{ const n=a.business_name;
+    if(a.discount_value&&a.discount_value.trim()) discC[n]=(discC[n]||0)+1;
+    else noC[n]=(noC[n]||0)+1;
+  });
+  const adComps=[...new Set(ADS.map(a=>a.business_name))].sort((a,b)=>((discC[b]||0)+(noC[b]||0))-((discC[a]||0)+(noC[a]||0)));
+  mkChart('stackedBar','bar',{
+    labels:adComps,
+    datasets:[
+      { label:'With Discount', data:adComps.map(n=>discC[n]||0), backgroundColor:'#05966999', borderColor:'#059669', borderWidth:1.5, borderRadius:4, borderSkipped:false },
+      { label:'No Discount',   data:adComps.map(n=>noC[n]||0),  backgroundColor:'#64748b33', borderColor:'#94a3b8',  borderWidth:1.5, borderRadius:4, borderSkipped:false },
+    ]
+  },{ stacked:true });
+
+  // Discount ads only
+  const discAds = ADS.filter(a=>a.discount_value&&a.discount_value.trim());
+  const dae = sorted(countBy(discAds,'business_name'));
+  mkChart('discAdsBar','bar',{
+    labels:dae.map(e=>e[0]),
+    datasets:[{ label:'Discount Ads', data:dae.map(e=>e[1]),
+      backgroundColor:dae.map(e=>colorFor(e[0])+'bb'),
+      borderColor:dae.map(e=>colorFor(e[0])),
+      borderWidth:1.5, borderRadius:5, borderSkipped:false }]
+  },{ indexAxis:'y', hideLegend:true });
+}
+
+// ─── Tables ──────────────────────────────────────────────────────────────────
+const CAT_CLS = { 'Oil Change':'b-green','Tire Sales':'b-blue','Battery':'b-amber','Brake':'b-red','Other':'b-gray' };
+
+function renderTable() {
+  const q = (document.getElementById('promoSearch').value||'').toLowerCase();
+  const sort = _sortState.promos;
+  let rows = filteredPromos().filter(p => !q ||
+    [p.business_name,p.service_name,p.offer_details,p.promo_description,p.discount_value,p.category]
+    .join(' ').toLowerCase().includes(q)
+  );
+  if (sort.key) rows.sort((a,b)=>((a[sort.key]||'')>(b[sort.key]||'')?1:-1)*sort.dir);
+  document.getElementById('promoCount').textContent = rows.length + ' records';
+  const tbody = document.getElementById('promoTbody');
+  tbody.innerHTML = rows.map(p=>{
+    const cat = p.category||'';
+    const disc = p.discount_value||'';
+    return `<tr>
+      <td><div class="comp-cell"><span class="comp-dot" style="background:${colorFor(p.business_name)}"></span>${p.business_name}</div></td>
+      <td>${(p.city||'').trim()}</td>
+      <td>${p.service_name||''}</td>
+      <td>${disc?`<span class="badge b-green">${disc}</span>`:'<span style="color:#cbd5e1">—</span>'}</td>
+      <td style="color:var(--muted);max-width:240px">${(p.offer_details||p.promo_description||'').slice(0,100)}</td>
+      <td style="color:var(--muted);white-space:nowrap">${p.expiry_date||'—'}</td>
+      <td>${cat?`<span class="badge ${CAT_CLS[cat]||'b-gray'}">${cat}</span>`:''}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="7" class="empty">No results.</td></tr>`;
+}
+
+function renderAdsTable() {
+  const q = (document.getElementById('adsSearch').value||'').toLowerCase();
+  const sort = _sortState.ads;
+  let rows = filteredAds().filter(a => !q ||
+    [a.business_name,a.ad_title,a.ad_description,a.discount_value,a.displayed_link].join(' ').toLowerCase().includes(q)
+  );
+  if (sort.key) rows.sort((a,b)=>((a[sort.key]||'')>(b[sort.key]||'')?1:-1)*sort.dir);
+  document.getElementById('adsCount').textContent = rows.length + ' creatives';
+  const tbody = document.getElementById('adsTbody');
+  tbody.innerHTML = rows.map(a=>{
+    const disc = a.discount_value||'';
+    return `<tr>
+      <td><div class="comp-cell"><span class="comp-dot" style="background:${colorFor(a.business_name)}"></span>${a.business_name}</div></td>
+      <td style="font-weight:500;max-width:200px">${a.ad_title||''}</td>
+      <td style="color:var(--muted);max-width:300px">${(a.ad_description||'').slice(0,110)}</td>
+      <td>${disc?`<span class="badge b-amber">${disc}</span>`:'<span style="color:#cbd5e1">—</span>'}</td>
+      <td><span style="color:var(--accent);font-size:11.5px">${a.displayed_link||''}</span></td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="5" class="empty">No results.</td></tr>`;
+}
+
+// ─── Sort ────────────────────────────────────────────────────────────────────
+function sortTable(which, key, th) {
+  const s = _sortState[which];
+  s.dir = (s.key===key) ? -s.dir : 1;
+  s.key = key;
+  document.querySelectorAll('thead th').forEach(t=>t.className='');
+  th.className = s.dir===1 ? 'sorted-asc' : 'sorted-desc';
+  which==='promos' ? renderTable() : renderAdsTable();
+}
+
+// ─── Master refresh ──────────────────────────────────────────────────────────
+function renderAll() {
+  renderKPIs();
+  renderSpotlight();
+  renderCharts();
+  renderTable();
+  renderAdsTable();
+}
+
+// ─── Animations ──────────────────────────────────────────────────────────────
+function initAnimations() {
+  if (typeof Motion !== 'undefined') {
+    const { animate, spring } = Motion;
+    // All cards and KPIs animate in at once (no stagger)
+    animate(
+      document.querySelectorAll('.card, .kpi, .deal-card'),
+      { opacity:[0,1], transform:['translateY(20px)','translateY(0px)'] },
+      { duration:0.5, easing:spring({ stiffness:140, damping:20 }) }
+    );
+  } else {
+    document.querySelectorAll('.card,.kpi,.deal-card').forEach(el=>{
+      el.style.opacity='1'; el.style.transform='none';
+    });
+  }
+}
+
+// ─── Boot ────────────────────────────────────────────────────────────────────
+populateCompDropdown();
+renderAll();
+// Defer animations until after first paint
+requestAnimationFrame(() => setTimeout(initAnimations, 50));
+</script>
+</body>
+</html>
