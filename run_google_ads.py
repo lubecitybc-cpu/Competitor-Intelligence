@@ -21,8 +21,15 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 from app.scrapers.google_ads_scraper import (  # noqa: E402
-    scrape_google_ads, COMPETITORS, ADS_DIR, _build_url,
+    scrape_google_ads, COMPETITORS, ADS_DIR,
 )
+
+_ATC_BASE = "https://adstransparency.google.com/advertiser"
+
+
+def _build_url(competitor: dict) -> str:
+    aid = competitor.get("advertiser_id", "")
+    return f"{_ATC_BASE}/{aid}" if aid else ""
 
 SHEET_ID = "11e3ErdYFIQ3MIOEpnLEGS4MH0s2AbSIhiQsgzQG_m88"
 ADS_TAB = "Advertisements"

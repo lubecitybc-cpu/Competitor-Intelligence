@@ -1,8 +1,8 @@
-"""Google Ads scraper — two-step ATC extraction via Firecrawl.
+"""Google Ads scraper — SerpAPI-based ATC extraction.
 
-Step 1: Fetch the competitor's ATC page to extract creative detail URLs.
-Step 2: Fetch each creative detail page to extract headline, description,
-        displayed link, and other fields.
+Step 1: Call google_ads_transparency_center with advertiser_id → get list of text creatives.
+Step 2: For each text creative (up to MAX_PER_COMPETITOR), call
+        google_ads_transparency_center_ad_details → extract title, snippet, visible_link.
 
 Public entry point:
     scrape_google_ads(competitors, *, mode="qa_expanded") -> Dict
@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import requests
-from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 from app.config.constants import DATA_DIR
@@ -29,8 +28,8 @@ logger = setup_logger(__name__, "google_ads_scraper.log")
 ADS_DIR = DATA_DIR / "ads"
 ADS_DIR.mkdir(parents=True, exist_ok=True)
 
-_BASE_ATC = "https://adstransparency.google.com"
-_FIRECRAWL_V1 = "https://api.firecrawl.dev/v1/scrape"
+_SERPAPI_BASE = "https://serpapi.com/search"
+MAX_PER_COMPETITOR = 3
 
 # ---------------------------------------------------------------------------
 # Competitor registry
@@ -40,7 +39,7 @@ COMPETITORS: List[Dict] = [
     {"name": "Midas",                     "advertiser_id": "AR11515155316006191105"},
     {"name": "Lube Town",                 "advertiser_id": "AR07923297702782173185"},
     {"name": "Jiffy Lube",                "advertiser_id": "AR10265048674404925441"},
-    {"name": "Great Canadian Oil Change", "advertiser_id": "AR06652422686691557377"},  # Valvoline franchise
+    {"name": "Great Canadian Oil Change", "advertiser_id": "AR06652422686691557377"},
     {"name": "Quick Lane",                "advertiser_id": "AR01146826087020363777"},
     {"name": "Valvoline",                 "advertiser_id": "AR06652422686691557377"},
     {"name": "Econo Lube",               "advertiser_id": "AR03728714169130680321"},
@@ -49,245 +48,76 @@ COMPETITORS: List[Dict] = [
 ]
 
 
-def _build_url(competitor: Dict) -> str:
-    aid = competitor.get("advertiser_id")
-    if aid:
-        return f"{_BASE_ATC}/advertiser/{aid}?region=CA&format=TEXT"
-    return f"{_BASE_ATC}/?region=CA&domain={competitor['domain']}&format=TEXT"
-
-
 # ---------------------------------------------------------------------------
-# Firecrawl helpers
+# API key
 # ---------------------------------------------------------------------------
 
 def _get_api_key() -> str:
     load_dotenv(Path(__file__).resolve().parents[3] / ".env", override=True)
-    return os.getenv("FIRECRAWL_API_KEY", "")
+    return os.getenv("SERPAPI_KEY", "")
 
 
-def _firecrawl_fetch(url: str, wait_ms: int = 6000, scroll: bool = True) -> Dict:
+# ---------------------------------------------------------------------------
+# SerpAPI helpers
+# ---------------------------------------------------------------------------
+
+def _serpapi_get(params: Dict) -> Dict:
+    """Make a GET request to SerpAPI and return the parsed JSON."""
     api_key = _get_api_key()
     if not api_key:
-        return {"html": "", "markdown": "", "error": "FIRECRAWL_API_KEY not set"}
-
-    actions = [{"type": "wait", "milliseconds": wait_ms}]
-    if scroll:
-        actions += [
-            {"type": "scroll", "direction": "down", "amount": 500},
-            {"type": "wait", "milliseconds": 2000},
-        ]
-
-    payload = {
-        "url": url,
-        "onlyMainContent": False,
-        "formats": ["html"],
-        "waitFor": wait_ms,
-        "actions": actions,
-    }
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-
+        return {"error": "SERPAPI_KEY not set"}
+    params = {**params, "api_key": api_key}
     try:
-        resp = requests.post(_FIRECRAWL_V1, json=payload, headers=headers, timeout=120)
+        resp = requests.get(_SERPAPI_BASE, params=params, timeout=60)
         resp.raise_for_status()
+        return resp.json()
     except Exception as exc:
-        return {"html": "", "error": str(exc)}
-
-    data = resp.json().get("data", resp.json())
-    return {"html": data.get("html", "") or "", "error": None}
+        return {"error": str(exc)}
 
 
-# ---------------------------------------------------------------------------
-# Step 1 — extract creative detail URLs from the main ATC page
-# ---------------------------------------------------------------------------
-
-_CREATIVE_URL_RE = re.compile(
-    r"https://adstransparency\.google\.com/advertiser/[^\"'\s>]+/creative/[^\"'\s>]+"
-)
-
-
-def _get_creative_urls(atc_url: str) -> List[str]:
-    """Fetch the ATC landing page and return all creative detail page URLs."""
-    res = _firecrawl_fetch(atc_url, wait_ms=6000, scroll=True)
-    if res.get("error") or not res["html"]:
-        logger.warning(f"[ads] Failed to fetch ATC page: {atc_url}")
+def _get_text_creatives(advertiser_id: str) -> List[Dict]:
+    """Return a list of text-format creative dicts for the advertiser."""
+    data = _serpapi_get({
+        "engine": "google_ads_transparency_center",
+        "advertiser_id": advertiser_id,
+    })
+    if "error" in data:
+        logger.warning(f"[ads] SerpAPI error for {advertiser_id}: {data['error']}")
         return []
-
-    urls = _CREATIVE_URL_RE.findall(res["html"])
-    # Deduplicate while preserving order
-    seen: set = set()
-    unique: List[str] = []
-    for u in urls:
-        if u not in seen:
-            seen.add(u)
-            unique.append(u)
-
-    logger.info(f"[ads] Found {len(unique)} creative URLs at {atc_url}")
-    return unique
+    creatives = data.get("ad_creatives", [])
+    text_creatives = [c for c in creatives if c.get("format", "").lower() == "text"]
+    logger.info(
+        f"[ads] {advertiser_id}: {len(creatives)} total creatives, "
+        f"{len(text_creatives)} text"
+    )
+    return text_creatives
 
 
-# ---------------------------------------------------------------------------
-# Step 2 — extract ad content from a creative detail page
-# ---------------------------------------------------------------------------
-
-_NOISE_LINES = {
-    "ads transparency center", "go to ads transparency center home page.",
-    "sign in", "all topics", "political ads", "find the ads you've seen",
-    "advertiser details", "ad details", "all platforms", "all formats",
-    "any time", "see more results", "see all ads", "visit site", "directions",
-    "website", "report this ad", "our ad policies", "privacy", "terms",
-    "ads policies", "principles", "ads blog", "main menu", "google apps",
-    "shown in canada", "last shown:", "format:", "see more ads by this advertiser",
-    "sponsored", "verified", "chevron_left", "chevron_right", "arrow_forward",
-    "arrow_drop_down", "keyboard_arrow_right", "how_to_reg", "calendar_today",
-    "dismiss", "learn more", "cancel", "apply", "hide_image",
-    "advertiser has verified their identity",
-    "some advertisers show ads with age restricted content.",
-    "the information about this ad may vary by location",
-}
-_NOISE_PREFIX_RE = re.compile(
-    r"^(local ad rendering|moroch|redistricting|the boundaries|removed for a|"
-    r"sorry, we|our ad policies|prohibited|restricted content|editorial|"
-    r"legal name:|based in:|~\d|\d+ ads|plus$|1 of \d|sign in to)",
-    re.IGNORECASE,
-)
-_TEMPLATE_RE = re.compile(r"<[A-Z]")
-_ICON_RE = re.compile(r"^[a-z_]+$")
-# Matches store-hours strings like "8 AM–6 PM" or "Open 24 hours"
-_HOURS_RE = re.compile(r"\d+\s*(AM|PM|am|pm)|open\s+\d+|closes?\s+at", re.I)
-
-
-def _is_noise(text: str) -> bool:
-    t = text.strip()
-    if not t or len(t) < 4:
-        return True
-    if t.lower() in _NOISE_LINES:
-        return True
-    if _TEMPLATE_RE.match(t):
-        return True
-    if _ICON_RE.match(t):
-        return True
-    if _NOISE_PREFIX_RE.match(t):
-        return True
-    if _HOURS_RE.search(t):
-        return True
-    return False
-
-
-_DOMAIN_RE = re.compile(r"^(www\.[\w.-]+\.\w{2,6}|[\w-]+\.(ca|com|net|org)(/\S*)?)$", re.I)
-# Unicode bidi control characters inserted by ATC around ad copy
-_BIDI_RE = re.compile(r"[⁦⁧⁨⁩‪-‮  ]")
-_URL_PATH_RE = re.compile(r"^/\S+$")  # bare URL paths like /oil_change
-_PHONE_RE = re.compile(r"\b\d{3}[\s.-]\d{3}[\s.-]\d{4}\b|call\s+\(?\d", re.I)
-
-
-def _strip_bidi(text: str) -> str:
-    return _BIDI_RE.sub("", text).strip()
-
-
-def _parse_creative_page(html: str) -> Optional[Dict]:
-    """Extract ad_title, ad_description, and displayed_link from a creative detail page."""
-    soup = BeautifulSoup(html, "html.parser")
-    # Strip bidi control characters before any processing
-    texts = [_strip_bidi(t) for t in soup.stripped_strings if _strip_bidi(t)]
-
-    if not texts:
+def _get_ad_details(advertiser_id: str, creative_id: str) -> Optional[Dict]:
+    """Fetch ad details and return the first item with a title and snippet."""
+    data = _serpapi_get({
+        "engine": "google_ads_transparency_center_ad_details",
+        "advertiser_id": advertiser_id,
+        "creative_id": creative_id,
+    })
+    if "error" in data:
+        logger.warning(f"[ads] Details error for {creative_id}: {data['error']}")
         return None
 
-    lower_texts = [t.lower() for t in texts]
-
-    # displayed_link: first domain-like line in the original text list
-    displayed_link = ""
-    for t in texts:
-        if _DOMAIN_RE.match(t) and len(t) < 80:
-            displayed_link = t
-            break
-
-    # Restrict search to the creative detail panel only.
-    # The page has TWO "Ad details" nodes: a nav breadcrumb near the top and
-    # the actual panel header.  "See all ads" appears immediately before the
-    # real panel, so use it as a reliable start marker.
-    see_all_idx = next(
-        (i for i, t in enumerate(lower_texts) if t == "see all ads"),
-        -1,
-    )
-    if see_all_idx == -1:
-        # Fallback: last occurrence of "ad details"
-        all_ad_details = [i for i, t in enumerate(lower_texts) if t == "ad details"]
-        see_all_idx = all_ad_details[-1] if all_ad_details else 0
-
-    see_more_idx = next(
-        (i for i, t in enumerate(lower_texts) if "see more ads" in t),
-        len(texts),
-    )
-
-    # Search for "Visit site" in the ORIGINAL (unfiltered) texts inside the panel.
-    # "visit site" is in _NOISE_LINES so it would be removed from `clean` —
-    # searching original texts avoids that.
-    visit_indices = [
-        i for i, t in enumerate(lower_texts)
-        if t in ("visit site", "visit\xa0site")
-        and i > see_all_idx
-        and i < see_more_idx
-    ]
-
-    if not visit_indices:
-        # Fallback for call/single-ad format ads (no "Visit site" button).
-        # These use "Single Ad Rendering Service" as the content header.
-        single_idx = next(
-            (i for i, t in enumerate(lower_texts)
-             if t == "single ad rendering service" and i > see_all_idx and i < see_more_idx),
-            -1,
-        )
-        if single_idx == -1:
-            return None
-        content: List[str] = []
-        j = single_idx + 1
-        while j < see_more_idx and len(content) < 2:
-            candidate = texts[j]
-            if (len(candidate) >= 8
-                    and not _is_noise(candidate)
-                    and not _DOMAIN_RE.match(candidate)
-                    and not _URL_PATH_RE.match(candidate)
-                    and not _PHONE_RE.search(candidate)
-                    and "·" not in candidate):
-                content.append(candidate)
-            j += 1
-        if not content:
-            return None
-        return {
-            "ad_title":       content[0],
-            "ad_description": content[1] if len(content) > 1 else "",
-            "displayed_link": displayed_link,
-        }
-
-    # Use the last "Visit site" in the panel (multiple variations may exist).
-    target_visit = visit_indices[-1]
-
-    # Collect up to 2 content lines going backwards from "Visit site"
-    content: List[str] = []
-    j = target_visit - 1
-    while j >= 0 and len(content) < 2:
-        candidate = texts[j]
-        if (len(candidate) >= 8
-                and not _is_noise(candidate)
-                and not _DOMAIN_RE.match(candidate)
-                and "·" not in candidate
-                and candidate.lower() not in ("call", "directions", "website")):
-            content.insert(0, candidate)
-        j -= 1
-
-    if not content:
-        return None
-
-    return {
-        "ad_title":       content[0],
-        "ad_description": content[1] if len(content) > 1 else "",
-        "displayed_link": displayed_link,
-    }
+    for item in data.get("ad_creatives", []):
+        title = (item.get("title") or "").strip()
+        snippet = (item.get("snippet") or "").strip()
+        if title and snippet:
+            return {
+                "ad_title":       title,
+                "ad_description": snippet,
+                "displayed_link": (item.get("visible_link") or "").strip(),
+            }
+    return None
 
 
 # ---------------------------------------------------------------------------
-# Field extractors
+# Discount extractor
 # ---------------------------------------------------------------------------
 
 _DISCOUNT_RE = re.compile(
@@ -310,39 +140,37 @@ def _discount(title: str, desc: str) -> str:
 
 def _scrape_one_competitor(competitor: Dict) -> Dict:
     name = competitor["name"]
-    domain = competitor.get("domain", "")
-    atc_url = _build_url(competitor)
+    advertiser_id = competitor["advertiser_id"]
     today = datetime.now().strftime("%Y-%m-%d")
+    atc_url = f"https://adstransparency.google.com/advertiser/{advertiser_id}"
 
-    logger.info(f"[ads] {name}: Step 1 — getting creative URLs from {atc_url}")
-    creative_urls = _get_creative_urls(atc_url)
+    logger.info(f"[ads] {name}: fetching text creatives")
+    text_creatives = _get_text_creatives(advertiser_id)
 
-    if not creative_urls:
-        logger.warning(f"[ads] {name}: no creative URLs found")
+    if not text_creatives:
         return {"competitor": name, "url": atc_url, "status": "no_creatives", "ads": []}
 
-    MAX_CREATIVES = 40
-    if len(creative_urls) > MAX_CREATIVES:
-        logger.info(f"[ads] {name}: capping at {MAX_CREATIVES} of {len(creative_urls)} creatives")
-        creative_urls = creative_urls[:MAX_CREATIVES]
-
-    logger.info(f"[ads] {name}: Step 2 — fetching {len(creative_urls)} creative pages")
     enriched: List[Dict] = []
     seen_titles: set = set()
+    fetched = 0
 
-    for creative_url in creative_urls:
-        res = _firecrawl_fetch(creative_url, wait_ms=6000, scroll=False)
-        if res.get("error") or not res["html"]:
-            logger.debug(f"[ads] {name}: failed to fetch {creative_url}")
+    for creative in text_creatives:
+        if fetched >= MAX_PER_COMPETITOR:
+            break
+
+        creative_id = creative.get("ad_creative_id", "")
+        if not creative_id:
             continue
 
-        ad = _parse_creative_page(res["html"])
+        ad = _get_ad_details(advertiser_id, creative_id)
+        fetched += 1
+        time.sleep(0.5)
+
         if not ad:
-            logger.debug(f"[ads] {name}: no ad content parsed from {creative_url}")
+            logger.debug(f"[ads] {name}: no content in {creative_id}")
             continue
 
         title = ad["ad_title"]
-        desc = ad["ad_description"]
         key = title.lower()[:80]
         if key in seen_titles:
             continue
@@ -351,13 +179,12 @@ def _scrape_one_competitor(competitor: Dict) -> Dict:
         enriched.append({
             "business_name":  name,
             "ad_title":       title,
-            "ad_description": desc,
-            "discount_value": _discount(title, desc),
-            "ad_link":        creative_url,
-            "displayed_link": ad["displayed_link"] or domain,
+            "ad_description": ad["ad_description"],
+            "discount_value": _discount(title, ad["ad_description"]),
+            "ad_link":        creative.get("details_link", atc_url),
+            "displayed_link": ad["displayed_link"],
             "date_scraped":   today,
         })
-        time.sleep(1)  # polite pause between creative page fetches
 
     logger.info(f"[ads] {name}: {len(enriched)} unique ads extracted")
     return {
@@ -365,7 +192,7 @@ def _scrape_one_competitor(competitor: Dict) -> Dict:
         "url":        atc_url,
         "status":     "ok" if enriched else "no_ads",
         "ads":        enriched,
-        "creatives_found": len(creative_urls),
+        "creatives_found": len(text_creatives),
     }
 
 
@@ -388,13 +215,13 @@ def scrape_google_ads(
         result = _scrape_one_competitor(comp)
         all_ads.extend(result["ads"])
         url_log.append({
-            "competitor":       result["competitor"],
-            "url":              result["url"],
-            "status":           result["status"],
-            "ads_found":        len(result["ads"]),
-            "creatives_found":  result.get("creatives_found", 0),
+            "competitor":      result["competitor"],
+            "url":             result["url"],
+            "status":          result["status"],
+            "ads_found":       len(result["ads"]),
+            "creatives_found": result.get("creatives_found", 0),
         })
-        time.sleep(2)
+        time.sleep(1)
 
     if mode == "final_deduped":
         seen: set = set()
