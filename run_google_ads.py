@@ -32,7 +32,7 @@ def _build_url(competitor: dict) -> str:
     return f"{_ATC_BASE}/{aid}" if aid else ""
 
 SHEET_ID = "11e3ErdYFIQ3MIOEpnLEGS4MH0s2AbSIhiQsgzQG_m88"
-ADS_TAB = "Advertisements"
+ADS_TAB = "Ads Library"
 
 ADS_COLUMNS = [
     "business_name",
