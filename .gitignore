@@ -37,8 +37,12 @@ ENV/
 .env
 .env.local
 
-# Data directories
+# Data directories (exclude bulk data, allow dashboard data files)
 data/
+!data/ads/
+!data/ads/google_ads.json
+!data/sheets_ready/
+!data/sheets_ready/promotions_merged_for_sheets.json
 logs/
 *.log
 
@@ -48,9 +52,11 @@ logs/
 ocr_temp/
 *.tmp
 
-# Credentials
+# Credentials / config JSON (allow only specific data files above)
 *.json
 !**/competitor_list.json
+!data/ads/google_ads.json
+!data/sheets_ready/promotions_merged_for_sheets.json
 service_account.json
 credentials.json
 
