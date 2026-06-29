@@ -1,257 +1,117 @@
 {
-  "scraped_at": "2026-06-22T07:24:16.679913",
+  "scraped_at": "2026-06-29T06:47:11.507354",
   "mode": "qa_expanded",
   "ads": [
     {
       "business_name": "Midas",
       "ad_title": "Midas",
-      "ad_description": "Stop by Midas today and get a $35.99 synthetic blend or $10 off full synthetic oil change.",
-      "discount_value": "$35.99",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR04579314025283715073/creative/CR04916620802293497857?region=anywhere",
-      "displayed_link": "midas.com",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Midas",
-      "ad_title": "Midas",
       "ad_description": "Stop by Midas today for $50 off A/C repair. Our expert techs help you stay cool all year.",
       "discount_value": "$50 off",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR04579314025283715073/creative/CR08418465624799313921?region=anywhere",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR04579314025283715073/creative/CR06660379517334323201?region=anywhere",
       "displayed_link": "midas.com",
-      "date_scraped": "2026-06-22"
+      "date_scraped": "2026-06-29"
     },
     {
       "business_name": "Midas",
       "ad_title": "Midas",
-      "ad_description": "$79.99 full synthetic oil change + free digital closer look vehicle check \u2014 book now!",
-      "discount_value": "$79.99",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR04579314025283715073/creative/CR03406817064764047361?region=anywhere",
+      "ad_description": "Stop by Midas today for free wiper blades with purchase of an oil change.",
+      "discount_value": "free wiper",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR04579314025283715073/creative/CR06683125939011846145?region=anywhere",
       "displayed_link": "midas.com",
-      "date_scraped": "2026-06-22"
+      "date_scraped": "2026-06-29"
+    },
+    {
+      "business_name": "Midas",
+      "ad_title": "Midas",
+      "ad_description": "Stop by Midas today and get a $49.99 full synthetic oil change with tire rotation.",
+      "discount_value": "$49.99",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR04579314025283715073/creative/CR08278970034827558913?region=anywhere",
+      "displayed_link": "midas.com",
+      "date_scraped": "2026-06-29"
     },
     {
       "business_name": "Lube Town",
       "ad_title": "Lube Town + Tires",
       "ad_description": "No Appointment Needed",
       "discount_value": "",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR00296291342571536385?region=anywhere",
-      "displayed_link": "lubetown.com",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Lube Town",
-      "ad_title": "Lube Town + Tires - Calgary",
-      "ad_description": "Drive Thru Oil Change - 10 year Consumer Choice Award Winner. Warranty approved services",
-      "discount_value": "",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR09756817746795954177?region=anywhere",
-      "displayed_link": "",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Lube Town",
-      "ad_title": "Lube Town + Tires",
-      "ad_description": "Canadian Owned. Canadian Made Oil Since 2008.",
-      "discount_value": "",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR02985654865230823425?region=anywhere",
-      "displayed_link": "lubetown.com",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Jiffy Lube",
-      "ad_title": "Jiffy Lube",
-      "ad_description": "$10 off your next oil change with Jiffy Lube. Visit you nearest Jiffy Lube today.",
-      "discount_value": "$10 off",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR18032045877266219009/creative/CR18229860749386186753?region=anywhere",
-      "displayed_link": "jiffylubeservice.ca",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Jiffy Lube",
-      "ad_title": "Jiffy Lube - Courtenay",
-      "ad_description": "Oil Change Coupon Available - Find a Jiffy Lube near you for a fast oil change. $10 off oil change coupon availble.",
-      "discount_value": "$10 off",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR18032045877266219009/creative/CR12079467031758372865?region=anywhere",
-      "displayed_link": "",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Jiffy Lube",
-      "ad_title": "Jiffy Lube + Tires + Brakes",
-      "ad_description": "Find a Jiffy Lube near you for a fast oil change. $10 off oil change coupon availble.",
-      "discount_value": "$10 off",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR18032045877266219009/creative/CR13308802670350303233?region=anywhere",
-      "displayed_link": "jiffylubeservice.ca",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Great Canadian Oil Change",
-      "ad_title": "Great Canadian Oil Change",
-      "ad_description": "With over 115 locations and growing, we are the best choice for drive-thru oil changes.",
-      "discount_value": "",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR10784583595159715841?region=anywhere",
-      "displayed_link": "gcoc.ca",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Great Canadian Oil Change",
-      "ad_title": "Great Canadian Oil Change",
-      "ad_description": "Every GCOC oil change comes with the superior protection of Valvoline\u2019s trusted products.",
-      "discount_value": "",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR00564780623101689857?region=anywhere",
-      "displayed_link": "gcoc.ca",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Great Canadian Oil Change",
-      "ad_title": "Great Canadian Oil Change",
-      "ad_description": "Hurry and save up to $15 on your next oil change. Get your coupon today!",
-      "discount_value": "$15",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR00328490557770825729?region=anywhere",
-      "displayed_link": "gcoc.ca",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Valvoline",
-      "ad_title": "Great Canadian Oil Change",
-      "ad_description": "Every GCOC oil change comes with the superior protection of Valvoline\u2019s trusted products.",
-      "discount_value": "",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR00564780623101689857?region=anywhere",
-      "displayed_link": "gcoc.ca",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Econo Lube",
-      "ad_title": "EconoLube",
-      "ad_description": "Full-service automotive shop in Spruce Grove. Quality work you can trust. Call Us Now",
-      "discount_value": "",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR03728714169130680321/creative/CR17727262336378470401?region=anywhere",
-      "displayed_link": "econolube.ca",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Econo Lube",
-      "ad_title": "EconoLube",
-      "ad_description": "Your One-Stop Shop in Spruce Grove for Oil Changes, Tire Services, & Vehicle Repairs",
-      "discount_value": "",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR03728714169130680321/creative/CR17651760161389281281?region=anywhere",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR15649723433384673281?region=anywhere",
       "displayed_link": "<dynamically generated based on landing page content>",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Econo Lube",
-      "ad_title": "EconoLube",
-      "ad_description": "Heating, AC, Steering, Breaks\u2014 We Fix It All. Book Today.",
-      "discount_value": "",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR03728714169130680321/creative/CR13446858827802607617?region=anywhere",
-      "displayed_link": "econolube.ca",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Lube FX Plus",
-      "ad_title": "LubeFx Plus",
-      "ad_description": "Check out our LubeFX + coupons basic oil special for $44.99 - click here for more details.",
-      "discount_value": "$44.99",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR07682908778362044417/creative/CR16353788832283361281?region=anywhere",
-      "displayed_link": "lubefx.com",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Lube FX Plus",
-      "ad_title": "LubeFx Plus",
-      "ad_description": "Best service and prices in Edmonton. Quick lube, tire service and more.",
-      "discount_value": "",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR07682908778362044417/creative/CR12054279548238299137?region=anywhere",
-      "displayed_link": "lubefx.com",
-      "date_scraped": "2026-06-22"
-    },
-    {
-      "business_name": "Lube FX Plus",
-      "ad_title": "LubeFx Plus",
-      "ad_description": "Click for our discounts and specials here. Save money and get $25 off all tire services",
-      "discount_value": "$25 off",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR07682908778362044417/creative/CR07767133353324576769?region=anywhere",
-      "displayed_link": "lubefx.com",
-      "date_scraped": "2026-06-22"
+      "date_scraped": "2026-06-29"
     }
   ],
-  "count": 19,
+  "count": 4,
   "by_competitor": {
     "Midas": 3,
-    "Lube Town": 3,
-    "Jiffy Lube": 3,
-    "Great Canadian Oil Change": 3,
-    "Valvoline": 1,
-    "Econo Lube": 3,
-    "Lube FX Plus": 3
+    "Lube Town": 1
   },
   "validation": {
     "competitor_count": 9,
-    "competitors_with_ads": 7,
-    "competitors_no_ads": 2,
-    "total_ads_extracted": 19,
+    "competitors_with_ads": 2,
+    "competitors_no_ads": 7,
+    "total_ads_extracted": 4,
     "url_log": [
       {
         "competitor": "Midas",
         "url": "https://adstransparency.google.com/advertiser/AR04579314025283715073",
         "status": "ok",
         "ads_found": 3,
-        "creatives_found": 22
+        "creatives_found": 24
       },
       {
         "competitor": "Lube Town",
         "url": "https://adstransparency.google.com/advertiser/AR07923297702782173185",
         "status": "ok",
-        "ads_found": 3,
+        "ads_found": 1,
         "creatives_found": 31
       },
       {
         "competitor": "Jiffy Lube",
         "url": "https://adstransparency.google.com/advertiser/AR18032045877266219009",
-        "status": "ok",
-        "ads_found": 3,
-        "creatives_found": 28
+        "status": "no_ads",
+        "ads_found": 0,
+        "creatives_found": 0
       },
       {
         "competitor": "Great Canadian Oil Change",
         "url": "https://adstransparency.google.com/advertiser/AR06652422686691557377",
-        "status": "ok",
-        "ads_found": 3,
-        "creatives_found": 25
+        "status": "no_ads",
+        "ads_found": 0,
+        "creatives_found": 0
       },
       {
         "competitor": "Quick Lane",
         "url": "https://adstransparency.google.com/advertiser/AR01146826087020363777",
         "status": "no_ads",
         "ads_found": 0,
-        "creatives_found": 38
+        "creatives_found": 0
       },
       {
         "competitor": "Valvoline",
         "url": "https://adstransparency.google.com/advertiser/AR06652422686691557377",
-        "status": "ok",
-        "ads_found": 1,
-        "creatives_found": 25
+        "status": "no_ads",
+        "ads_found": 0,
+        "creatives_found": 0
       },
       {
         "competitor": "Econo Lube",
         "url": "https://adstransparency.google.com/advertiser/AR03728714169130680321",
-        "status": "ok",
-        "ads_found": 3,
-        "creatives_found": 11
+        "status": "no_ads",
+        "ads_found": 0,
+        "creatives_found": 0
       },
       {
         "competitor": "Lube FX Plus",
         "url": "https://adstransparency.google.com/advertiser/AR07682908778362044417",
-        "status": "ok",
-        "ads_found": 3,
-        "creatives_found": 16
+        "status": "no_ads",
+        "ads_found": 0,
+        "creatives_found": 0
       },
       {
         "competitor": "Mr. Lube + Tires",
         "url": "https://adstransparency.google.com/advertiser/AR00685141515294474241",
         "status": "no_ads",
         "ads_found": 0,
-        "creatives_found": 34
+        "creatives_found": 0
       }
     ]
   }
