@@ -1,67 +1,189 @@
 {
-  "scraped_at": "2026-06-29T06:47:11.507354",
+  "scraped_at": "2026-07-06T06:33:21.399265",
   "mode": "qa_expanded",
   "ads": [
     {
       "business_name": "Midas",
       "ad_title": "Midas",
-      "ad_description": "Stop by Midas today for $50 off A/C repair. Our expert techs help you stay cool all year.",
-      "discount_value": "$50 off",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR04579314025283715073/creative/CR06660379517334323201?region=anywhere",
-      "displayed_link": "midas.com",
-      "date_scraped": "2026-06-29"
-    },
-    {
-      "business_name": "Midas",
-      "ad_title": "Midas",
-      "ad_description": "Stop by Midas today for free wiper blades with purchase of an oil change.",
-      "discount_value": "free wiper",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR04579314025283715073/creative/CR06683125939011846145?region=anywhere",
-      "displayed_link": "midas.com",
-      "date_scraped": "2026-06-29"
-    },
-    {
-      "business_name": "Midas",
-      "ad_title": "Midas",
-      "ad_description": "Stop by Midas today and get a $49.99 full synthetic oil change with tire rotation.",
+      "ad_description": "Keep your engine happy with a $49.99 full synthetic oil change at Midas.",
       "discount_value": "$49.99",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR04579314025283715073/creative/CR08278970034827558913?region=anywhere",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR04579314025283715073/creative/CR08446747743925305345?region=anywhere",
       "displayed_link": "midas.com",
-      "date_scraped": "2026-06-29"
+      "date_scraped": "2026-07-06"
+    },
+    {
+      "business_name": "Midas",
+      "ad_title": "Midas",
+      "ad_description": "Brake with confidence. Get $100 off 2-axle brake service at Midas today.",
+      "discount_value": "$100 off",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR04579314025283715073/creative/CR15673581212209774593?region=anywhere",
+      "displayed_link": "midas.com",
+      "date_scraped": "2026-07-06"
+    },
+    {
+      "business_name": "Midas",
+      "ad_title": "Midas",
+      "ad_description": "Brake with confidence. Get $150 off 2-axle, $50 off one axle brake service at Midas today.",
+      "discount_value": "$150 off",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR04579314025283715073/creative/CR08607842140313092097?region=anywhere",
+      "displayed_link": "midas.com",
+      "date_scraped": "2026-07-06"
     },
     {
       "business_name": "Lube Town",
       "ad_title": "Lube Town + Tires",
       "ad_description": "No Appointment Needed",
       "discount_value": "",
-      "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR15649723433384673281?region=anywhere",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR00296291342571536385?region=anywhere",
+      "displayed_link": "lubetown.com",
+      "date_scraped": "2026-07-06"
+    },
+    {
+      "business_name": "Lube Town",
+      "ad_title": "Lube Town + Tires - Calgary",
+      "ad_description": "Drive Thru Oil Change - 10 year Consumer Choice Award Winner. Warranty approved services",
+      "discount_value": "",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR09756817746795954177?region=anywhere",
+      "displayed_link": "",
+      "date_scraped": "2026-07-06"
+    },
+    {
+      "business_name": "Lube Town",
+      "ad_title": "Lube Town + Tires",
+      "ad_description": "Canadian Owned. Canadian Made Oil Since 2008.",
+      "discount_value": "",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR07923297702782173185/creative/CR06872135020073451521?region=anywhere",
+      "displayed_link": "lubetown.com",
+      "date_scraped": "2026-07-06"
+    },
+    {
+      "business_name": "Great Canadian Oil Change",
+      "ad_title": "Great Canadian Oil Change",
+      "ad_description": "Every GCOC oil change comes with the superior protection of Valvoline\u2019s trusted products.",
+      "discount_value": "",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR08289429139186778113?region=anywhere",
+      "displayed_link": "gcoc.ca",
+      "date_scraped": "2026-07-06"
+    },
+    {
+      "business_name": "Great Canadian Oil Change",
+      "ad_title": "Great Canadian Oil Change",
+      "ad_description": "Stop by for a convenient oil change today and save $15! Open evenings & weekends",
+      "discount_value": "$15",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR16884873718961012737?region=anywhere",
+      "displayed_link": "gcoc.ca",
+      "date_scraped": "2026-07-06"
+    },
+    {
+      "business_name": "Great Canadian Oil Change",
+      "ad_title": "Great Canadian Oil Change",
+      "ad_description": "With over 120 locations and growing, we are the best choice for drive-thru oil changes.",
+      "discount_value": "",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR03801548954680688641?region=anywhere",
+      "displayed_link": "gcoc.ca",
+      "date_scraped": "2026-07-06"
+    },
+    {
+      "business_name": "Valvoline",
+      "ad_title": "Great Canadian Oil Change",
+      "ad_description": "Every GCOC oil change comes with the superior protection of Valvoline\u2019s trusted products.",
+      "discount_value": "",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR06652422686691557377/creative/CR08289429139186778113?region=anywhere",
+      "displayed_link": "gcoc.ca",
+      "date_scraped": "2026-07-06"
+    },
+    {
+      "business_name": "Econo Lube",
+      "ad_title": "EconoLube",
+      "ad_description": "Your One-Stop Shop in Spruce Grove for Oil Changes, Tire Services, & Vehicle Repairs",
+      "discount_value": "",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR03728714169130680321/creative/CR17651760161389281281?region=anywhere",
       "displayed_link": "<dynamically generated based on landing page content>",
-      "date_scraped": "2026-06-29"
+      "date_scraped": "2026-07-06"
+    },
+    {
+      "business_name": "Econo Lube",
+      "ad_title": "EconoLube",
+      "ad_description": "Specializing In Tire Servicing, Oil, & Fluid Changes. We Are Here For You. Call Us Today.",
+      "discount_value": "",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR03728714169130680321/creative/CR06904172727322542081?region=anywhere",
+      "displayed_link": "econolube.ca",
+      "date_scraped": "2026-07-06"
+    },
+    {
+      "business_name": "Econo Lube",
+      "ad_title": "EconoLube",
+      "ad_description": "Full-service automotive shop in Spruce Grove. Quality work you can trust. Call Us Now",
+      "discount_value": "",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR03728714169130680321/creative/CR16107216752684826625?region=anywhere",
+      "displayed_link": "econolube.ca",
+      "date_scraped": "2026-07-06"
+    },
+    {
+      "business_name": "Lube FX Plus",
+      "ad_title": "LubeFx Plus",
+      "ad_description": "Check out our LubeFX + coupons basic oil special for $44.99 - click here for more details.",
+      "discount_value": "$44.99",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR07682908778362044417/creative/CR00191678910042210305?region=anywhere",
+      "displayed_link": "lubefx.com",
+      "date_scraped": "2026-07-06"
+    },
+    {
+      "business_name": "Lube FX Plus",
+      "ad_title": "LubeFx Plus",
+      "ad_description": "Spark plugs starting at $199.99, and a $25 off coupon.Best service and prices in Edmonton.",
+      "discount_value": "$199.99",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR07682908778362044417/creative/CR12717870042922876929?region=anywhere",
+      "displayed_link": "lubefx.com",
+      "date_scraped": "2026-07-06"
+    },
+    {
+      "business_name": "Lube FX Plus",
+      "ad_title": "LubeFx Plus",
+      "ad_description": "Click for our discounts and specials here. Save money and get $25 off all tire services",
+      "discount_value": "$25 off",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR07682908778362044417/creative/CR07767133353324576769?region=anywhere",
+      "displayed_link": "lubefx.com",
+      "date_scraped": "2026-07-06"
+    },
+    {
+      "business_name": "Mr. Lube + Tires",
+      "ad_title": "Mr. Lube + Tires",
+      "ad_description": "Simply Swing by Your Neighbourhood Mr. Lube + Tires, We\u2019ll Take Care of Your Vehicle.",
+      "discount_value": "",
+      "ad_link": "https://adstransparency.google.com/advertiser/AR00685141515294474241/creative/CR12328431648658948097?region=anywhere",
+      "displayed_link": "mrlube.com",
+      "date_scraped": "2026-07-06"
     }
   ],
-  "count": 4,
+  "count": 17,
   "by_competitor": {
     "Midas": 3,
-    "Lube Town": 1
+    "Lube Town": 3,
+    "Great Canadian Oil Change": 3,
+    "Valvoline": 1,
+    "Econo Lube": 3,
+    "Lube FX Plus": 3,
+    "Mr. Lube + Tires": 1
   },
   "validation": {
     "competitor_count": 9,
-    "competitors_with_ads": 2,
-    "competitors_no_ads": 7,
-    "total_ads_extracted": 4,
+    "competitors_with_ads": 7,
+    "competitors_no_ads": 2,
+    "total_ads_extracted": 17,
     "url_log": [
       {
         "competitor": "Midas",
         "url": "https://adstransparency.google.com/advertiser/AR04579314025283715073",
         "status": "ok",
         "ads_found": 3,
-        "creatives_found": 24
+        "creatives_found": 29
       },
       {
         "competitor": "Lube Town",
         "url": "https://adstransparency.google.com/advertiser/AR07923297702782173185",
         "status": "ok",
-        "ads_found": 1,
+        "ads_found": 3,
         "creatives_found": 31
       },
       {
@@ -74,44 +196,44 @@
       {
         "competitor": "Great Canadian Oil Change",
         "url": "https://adstransparency.google.com/advertiser/AR06652422686691557377",
-        "status": "no_ads",
-        "ads_found": 0,
-        "creatives_found": 0
+        "status": "ok",
+        "ads_found": 3,
+        "creatives_found": 28
       },
       {
         "competitor": "Quick Lane",
         "url": "https://adstransparency.google.com/advertiser/AR01146826087020363777",
         "status": "no_ads",
         "ads_found": 0,
-        "creatives_found": 0
+        "creatives_found": 34
       },
       {
         "competitor": "Valvoline",
         "url": "https://adstransparency.google.com/advertiser/AR06652422686691557377",
-        "status": "no_ads",
-        "ads_found": 0,
-        "creatives_found": 0
+        "status": "ok",
+        "ads_found": 1,
+        "creatives_found": 28
       },
       {
         "competitor": "Econo Lube",
         "url": "https://adstransparency.google.com/advertiser/AR03728714169130680321",
-        "status": "no_ads",
-        "ads_found": 0,
-        "creatives_found": 0
+        "status": "ok",
+        "ads_found": 3,
+        "creatives_found": 11
       },
       {
         "competitor": "Lube FX Plus",
         "url": "https://adstransparency.google.com/advertiser/AR07682908778362044417",
-        "status": "no_ads",
-        "ads_found": 0,
-        "creatives_found": 0
+        "status": "ok",
+        "ads_found": 3,
+        "creatives_found": 17
       },
       {
         "competitor": "Mr. Lube + Tires",
         "url": "https://adstransparency.google.com/advertiser/AR00685141515294474241",
-        "status": "no_ads",
-        "ads_found": 0,
-        "creatives_found": 0
+        "status": "ok",
+        "ads_found": 1,
+        "creatives_found": 36
       }
     ]
   }
